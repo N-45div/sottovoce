@@ -1,0 +1,21 @@
+[build-system]
+requires = ["setuptools>=77"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "sottovoce"
+version = "0.1.0"
+description = "Audio description for video, written to fit the pauses and checked against the frames, on one AMD Instinct GPU."
+readme = "README.md"
+license = "MIT"
+requires-python = ">=3.11"
+dependencies = []
+
+[project.optional-dependencies]
+dev = ["pytest>=8"]
+
+[tool.setuptools]
+packages = ["sottovoce"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

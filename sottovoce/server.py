@@ -28,7 +28,8 @@ from .voice import speak_within
 
 DATA = Path(os.environ.get("SOTTOVOCE_DATA", "data"))
 MAX_SECONDS = float(os.environ.get("SOTTOVOCE_MAX_SECONDS", "300"))
-MAX_BYTES = 300 * 1024 * 1024
+# Cloud Run caps an HTTP/1 request at 32 MiB, so the hosted app sets this lower.
+MAX_BYTES = int(os.environ.get("SOTTOVOCE_MAX_MB", "300")) * 1024 * 1024
 FILES = {
     "source": "source.mp4",
     "described": "described.mp4",
@@ -227,7 +228,7 @@ async def _receive(video: UploadFile, source: Path) -> None:
         while chunk := await video.read(1 << 20):
             size += len(chunk)
             if size > MAX_BYTES:
-                raise HTTPException(413, "video larger than 300 MB")
+                raise HTTPException(413, f"video larger than {MAX_BYTES >> 20} MB")
             f.write(chunk)
     try:
         seconds = await asyncio.to_thread(duration, source)

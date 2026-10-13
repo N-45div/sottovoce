@@ -10,6 +10,7 @@ import json
 import os
 import shutil
 import uuid
+from contextlib import asynccontextmanager
 from dataclasses import asdict, dataclass, field
 from pathlib import Path
 
@@ -18,6 +19,7 @@ from fastapi.responses import FileResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
+from .agent_api import build_a2a
 from .audiences import AUDIENCES
 from .costs import cost
 from .describe import describe_gap
@@ -27,6 +29,7 @@ from .shots import duration, extract_frame
 from .voice import speak_within
 
 DATA = Path(os.environ.get("SOTTOVOCE_DATA", "data"))
+PUBLIC_URL = os.environ.get("SOTTOVOCE_PUBLIC_URL", "http://localhost:8080")
 MAX_SECONDS = float(os.environ.get("SOTTOVOCE_MAX_SECONDS", "300"))
 # Cloud Run caps an HTTP/1 request at 32 MiB, so the hosted app sets this lower.
 MAX_BYTES = int(os.environ.get("SOTTOVOCE_MAX_MB", "300")) * 1024 * 1024
@@ -105,13 +108,19 @@ async def run_job(job: Job) -> None:
         publish(job, {"type": "status", "status": job.status, "error": job.error})
 
 
-app = FastAPI(title="Sottovoce")
-
-
-@app.on_event("startup")
-def startup() -> None:
+@asynccontextmanager
+async def lifespan(app: FastAPI):
     (DATA / "jobs").mkdir(parents=True, exist_ok=True)
     load_jobs()
+    # ADK's A2A app attaches its routes in its own lifespan, so run that here and
+    # put the routes ahead of the static files, which answer everything else.
+    a2a = await build_a2a(PUBLIC_URL)
+    async with a2a.router.lifespan_context(a2a):
+        app.router.routes[0:0] = a2a.routes
+        yield
+
+
+app = FastAPI(title="Sottovoce", lifespan=lifespan)
 
 
 @app.post("/api/jobs")

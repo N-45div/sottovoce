@@ -78,3 +78,10 @@ def test_an_unknown_audience_is_refused(client):
 def test_a_refused_upload_leaves_nothing_behind(client):
     client.post("/api/jobs", files={"video": ("x.mp4", b"junk", "video/mp4")}, data={"audience": "it"})
     assert [p.name for p in (server.DATA / "jobs").iterdir()] == [JOB]
+
+
+def test_a2a_agent_card_points_at_the_a2a_route(client):
+    card = client.get("/a2a/.well-known/agent-card.json").json()
+    assert card["name"] == "sottovoce"
+    assert card["supportedInterfaces"][0]["url"].endswith("/a2a")
+    assert "AMD" in card["description"]

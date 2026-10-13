@@ -1,0 +1,159 @@
+"""From a video file to a voiced audio-description script.
+
+1. Transcribe the dialogue and find the pauses (CPU, faster-whisper).
+2. Find the shots and pick keyframes for each pause (ffmpeg).
+3. Write and check a line for every pause (two vision models on AMD
+   Token Factory, run through Google ADK), a few pauses at a time.
+4. Voice each line to fit its pause (Google Cloud Text-to-Speech).
+"""
+
+from __future__ import annotations
+
+import asyncio
+import json
+import time
+from collections.abc import Callable
+from concurrent.futures import ThreadPoolExecutor
+from dataclasses import asdict, dataclass, field
+from pathlib import Path
+
+from .asr import Word, dialogue_around, transcribe_cached
+from .describe import Settings, describe_gap
+from .gaps import find_gaps, speech_spans, split_long
+from .shots import detect_cuts, duration, extract_frame, frame_times, shots_from_cuts
+from .voice import speak_within
+
+WORDS_PER_SECOND = 2.5
+
+
+@dataclass
+class Cue:
+    start: float
+    end: float
+    words: int
+    frames: list[float]
+    before: str = ""
+    after: str = ""
+    line: str = ""
+    status: str = "pending"
+    claims: list[dict] = field(default_factory=list)
+    history: list[dict] = field(default_factory=list)
+    tokens: dict[str, list[int]] = field(default_factory=dict)
+    seconds: float = 0.0
+    rate: float = 1.0
+    fits: bool = True
+    audio: str = ""
+
+
+@dataclass
+class Script:
+    video: str
+    audience: str
+    duration: float
+    cues: list[Cue]
+    timings: dict[str, float] = field(default_factory=dict)
+
+    def to_json(self) -> str:
+        return json.dumps(asdict(self), ensure_ascii=False, indent=2)
+
+    @classmethod
+    def from_json(cls, text: str) -> Script:
+        data = json.loads(text)
+        data["cues"] = [Cue(**c) for c in data["cues"]]
+        return cls(**data)
+
+
+def plan(video: Path | str, words: list[Word], total: float) -> list[Cue]:
+    """Decide where descriptions go and which frames each one looks at."""
+    speech = speech_spans([(w.start, w.end) for w in words])
+    gaps = split_long(
+        find_gaps(speech, total, words_per_second=WORDS_PER_SECOND),
+        words_per_second=WORDS_PER_SECOND,
+    )
+    shots = shots_from_cuts(detect_cuts(video), total)
+    cues = []
+    for gap in gaps:
+        before, after = dialogue_around(words, gap.start, gap.end)
+        times = frame_times(shots, gap.start, gap.end)
+        cues.append(Cue(gap.start, gap.end, gap.words, times, before, after))
+    return cues
+
+
+async def write_lines(
+    video: Path | str,
+    cues: list[Cue],
+    audience: str,
+    *,
+    settings: Settings | None = None,
+    concurrency: int = 3,
+    on_cue: Callable[[int, Cue], None] | None = None,
+) -> None:
+    """Write and check a line for every cue, `concurrency` cues at a time."""
+    settings = settings or Settings.from_env()
+    gate = asyncio.Semaphore(concurrency)
+
+    async def one(i: int, cue: Cue) -> None:
+        async with gate:
+            frames = await asyncio.gather(*(asyncio.to_thread(extract_frame, video, t) for t in cue.frames))
+            result = await describe_gap(
+                list(frames), cue.words, audience,
+                before=cue.before, after=cue.after, settings=settings,
+            )
+        cue.line, cue.status = result.line, result.status
+        cue.claims, cue.history, cue.tokens = result.claims, result.history, result.tokens
+        if on_cue:
+            on_cue(i, cue)
+
+    await asyncio.gather(*(one(i, c) for i, c in enumerate(cues)))
+
+
+def voice_lines(cues: list[Cue], audience: str, out_dir: Path) -> None:
+    """Speak every written line into `out_dir`, fitted to its pause."""
+    out_dir.mkdir(parents=True, exist_ok=True)
+
+    def one(i: int, cue: Cue) -> None:
+        if not cue.line:
+            return
+        speech = speak_within(cue.line, cue.end - cue.start, audience)
+        cue.audio = f"cue_{i:03d}.wav"
+        (out_dir / cue.audio).write_bytes(speech.wav)
+        cue.seconds, cue.rate, cue.fits = round(speech.seconds, 3), speech.rate, speech.fits
+
+    with ThreadPoolExecutor(4) as pool:
+        list(pool.map(one, range(len(cues)), cues))
+
+
+async def describe_video(
+    video: Path | str,
+    out_dir: Path | str,
+    audience: str = "it",
+    *,
+    settings: Settings | None = None,
+    concurrency: int = 3,
+    on_cue: Callable[[int, Cue], None] | None = None,
+) -> Script:
+    """Run every stage and save the script next to the voiced lines."""
+    video, out_dir = Path(video), Path(out_dir)
+    timings: dict[str, float] = {}
+
+    t = time.perf_counter()
+    total = duration(video)
+    words = await asyncio.to_thread(transcribe_cached, video)
+    timings["transcribe"] = time.perf_counter() - t
+
+    t = time.perf_counter()
+    cues = await asyncio.to_thread(plan, video, words, total)
+    timings["plan"] = time.perf_counter() - t
+
+    t = time.perf_counter()
+    await write_lines(video, cues, audience, settings=settings, concurrency=concurrency, on_cue=on_cue)
+    timings["describe"] = time.perf_counter() - t
+
+    t = time.perf_counter()
+    await asyncio.to_thread(voice_lines, cues, audience, out_dir / "audio")
+    timings["voice"] = time.perf_counter() - t
+
+    script = Script(str(video), audience, total, cues, {k: round(v, 2) for k, v in timings.items()})
+    out_dir.mkdir(parents=True, exist_ok=True)
+    (out_dir / "script.json").write_text(script.to_json(), encoding="utf-8")
+    return script

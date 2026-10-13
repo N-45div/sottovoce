@@ -23,7 +23,10 @@ from .gaps import find_gaps, speech_spans, split_long
 from .shots import detect_cuts, duration, extract_frame, frame_times, shots_from_cuts
 from .voice import speak_within
 
-WORDS_PER_SECOND = 2.5
+# Word budget per second of pause. The trimmed it-IT Chirp 3 HD voice speaks about
+# 3.5 words a second; budgeting 2.8 leaves room to breathe, and the voice step
+# measures the real length of every line anyway.
+WORDS_PER_SECOND = 2.8
 
 
 @dataclass

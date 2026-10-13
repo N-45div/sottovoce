@@ -15,6 +15,9 @@ dependencies = [
     "faster-whisper>=1.2",
     "google-cloud-texttospeech>=2.38",
     "numpy>=1.26",
+    "fastapi>=0.115",
+    "uvicorn>=0.30",
+    "python-multipart>=0.0.9",
 ]
 
 [project.optional-dependencies]
@@ -22,6 +25,9 @@ dev = ["pytest>=8"]
 
 [tool.setuptools]
 packages = ["sottovoce"]
+
+[tool.setuptools.package-data]
+sottovoce = ["web/*"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

@@ -18,6 +18,7 @@ from dataclasses import asdict, dataclass, field
 from pathlib import Path
 
 from .asr import Word, dialogue_around, transcribe_cached
+from .audiences import AUDIENCES
 from .describe import Settings, describe_gap
 from .gaps import find_gaps, speech_spans, split_long
 from .shots import detect_cuts, duration, extract_frame, frame_times, shots_from_cuts
@@ -66,7 +67,10 @@ class Script:
         return cls(**data)
 
 
-def plan(video: Path | str, words: list[Word], total: float) -> list[Cue]:
+EXTENDED_WORDS = 22  # the picture waits for the line, so it can say more
+
+
+def plan(video: Path | str, words: list[Word], total: float, audience: str = "it") -> list[Cue]:
     """Decide where descriptions go and which frames each one looks at."""
     speech = speech_spans([(w.start, w.end) for w in words])
     gaps = split_long(
@@ -74,11 +78,13 @@ def plan(video: Path | str, words: list[Word], total: float) -> list[Cue]:
         words_per_second=WORDS_PER_SECOND,
     )
     shots = shots_from_cuts(detect_cuts(video), total)
+    extended = AUDIENCES[audience].extended
     cues = []
     for gap in gaps:
         before, after = dialogue_around(words, gap.start, gap.end)
         times = frame_times(shots, gap.start, gap.end)
-        cues.append(Cue(gap.start, gap.end, gap.words, times, before, after))
+        budget = max(gap.words, EXTENDED_WORDS) if extended else gap.words
+        cues.append(Cue(gap.start, gap.end, budget, times, before, after))
     return cues
 
 
@@ -111,13 +117,19 @@ async def write_lines(
 
 
 def voice_lines(cues: list[Cue], audience: str, out_dir: Path) -> None:
-    """Speak every written line into `out_dir`, fitted to its pause."""
+    """Speak every written line into `out_dir`, fitted to its pause.
+
+    Extended description holds the picture instead, so its lines are spoken at
+    their natural pace however long they run.
+    """
     out_dir.mkdir(parents=True, exist_ok=True)
+    extended = AUDIENCES[audience].extended
 
     def one(i: int, cue: Cue) -> None:
         if not cue.line:
             return
-        speech = speak_within(cue.line, cue.end - cue.start, audience)
+        limit = 60.0 if extended else cue.end - cue.start
+        speech = speak_within(cue.line, limit, audience)
         cue.audio = f"cue_{i:03d}.wav"
         (out_dir / cue.audio).write_bytes(speech.wav)
         cue.seconds, cue.rate, cue.fits = round(speech.seconds, 3), speech.rate, speech.fits
@@ -145,7 +157,7 @@ async def describe_video(
     timings["transcribe"] = time.perf_counter() - t
 
     t = time.perf_counter()
-    cues = await asyncio.to_thread(plan, video, words, total)
+    cues = await asyncio.to_thread(plan, video, words, total, audience)
     timings["plan"] = time.perf_counter() - t
 
     t = time.perf_counter()

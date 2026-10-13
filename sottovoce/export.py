@@ -3,10 +3,12 @@
 from __future__ import annotations
 
 import subprocess
+from dataclasses import replace
 from pathlib import Path
 
 import numpy as np
 
+from .audiences import AUDIENCES
 from .pipeline import Cue, Script
 from .voice import SAMPLE_RATE, read_pcm, write_wav
 
@@ -68,6 +70,52 @@ def mix(video: Path, narration_wav: Path, cues: list[Cue], out: Path, duck: floa
     )
 
 
+HOLD_PAD = 0.3  # seconds of quiet after a held line, before the film resumes
+
+
+def holds(cues: list[Cue]) -> list[tuple[float, float]]:
+    """Where extended description holds the picture, and for how long.
+
+    A line longer than its pause holds the last frame of the pause until the
+    line ends, so the film never talks over it.
+    """
+    return [
+        (cue.end, round(cue.seconds - (cue.end - cue.start) + HOLD_PAD, 3))
+        for cue in cues
+        if cue.audio and cue.seconds > cue.end - cue.start
+    ]
+
+
+def shift(t: float, held: list[tuple[float, float]]) -> float:
+    """Where time `t` of the original lands once the holds are inserted."""
+    return round(t + sum(extra for at, extra in held if at <= t), 3)
+
+
+def hold_frames(video: Path, held: list[tuple[float, float]], total: float, out: Path) -> None:
+    """Re-cut the video with each hold: a frozen frame and silence."""
+    edges = [0.0, *(at for at, _ in held), total]
+    extras = [extra for _, extra in held] + [0.0]
+    parts, labels = [], []
+    for i, (a, b) in enumerate(zip(edges, edges[1:])):
+        pad_v = f",tpad=stop_mode=clone:stop_duration={extras[i]}" if extras[i] else ""
+        pad_a = f",apad=pad_dur={extras[i]}" if extras[i] else ""
+        parts.append(f"[0:v]trim=start={a}:end={b},setpts=PTS-STARTPTS{pad_v}[v{i}]")
+        parts.append(
+            f"[0:a]atrim=start={a}:end={b},asetpts=PTS-STARTPTS,"
+            f"aformat=sample_rates=48000:channel_layouts=stereo{pad_a}[a{i}]"
+        )
+        labels.append(f"[v{i}][a{i}]")
+    graph = ";".join(parts) + f";{''.join(labels)}concat=n={len(labels)}:v=1:a=1[v][a]"
+    subprocess.run(
+        [
+            "ffmpeg", "-v", "error", "-y", "-i", str(video), "-filter_complex", graph,
+            "-map", "[v]", "-map", "[a]", "-c:v", "libx264", "-preset", "veryfast", "-crf", "21",
+            "-c:a", "aac", "-b:a", "192k", str(out),
+        ],
+        check=True,
+    )
+
+
 def export(script: Script, out_dir: Path | str) -> dict[str, Path]:
     """Write described.mp4, narration.wav and descriptions.vtt into `out_dir`."""
     out_dir = Path(out_dir)
@@ -76,9 +124,17 @@ def export(script: Script, out_dir: Path | str) -> dict[str, Path]:
         "narration": out_dir / "narration.wav",
         "vtt": out_dir / "descriptions.vtt",
     }
-    files["vtt"].write_text(to_vtt(script.cues), encoding="utf-8")
-    files["narration"].write_bytes(
-        write_wav(narration(script.cues, out_dir / "audio", script.duration))
-    )
-    mix(Path(script.video), files["narration"], script.cues, files["video"])
+    video, cues, total = Path(script.video), script.cues, script.duration
+    held = holds(cues) if AUDIENCES[script.audience].extended else []
+    if held:
+        video = out_dir / "held.mp4"
+        hold_frames(Path(script.video), held, total, video)
+        cues = [
+            replace(c, start=shift(c.start, held), end=shift(c.start, held) + max(c.end - c.start, c.seconds))
+            for c in cues
+        ]
+        total += sum(extra for _, extra in held)
+    files["vtt"].write_text(to_vtt(cues), encoding="utf-8")
+    files["narration"].write_bytes(write_wav(narration(cues, out_dir / "audio", total)))
+    mix(video, files["narration"], cues, files["video"])
     return files

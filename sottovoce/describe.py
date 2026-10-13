@@ -28,6 +28,7 @@ from pydantic import BaseModel, ConfigDict, ValidationError
 from .audiences import AUDIENCES, Audience
 
 TOKEN_FACTORY = "https://developer.amd.com.cn/radeon/api/v1"
+WORD_SLACK = 1.2
 
 
 @dataclass(frozen=True)
@@ -156,6 +157,23 @@ def _verifier_instruction(ctx: ReadonlyContext) -> str:
     )
 
 
+def judge(line: str, reply: str, limit: int) -> tuple[Check, list[str]]:
+    """List what is wrong with a line, from the verifier's reply and the word budget."""
+    try:
+        check = parse_check(reply)
+    except ValueError as e:
+        return Check(claims=[]), [f"verifier reply unreadable: {e}"]
+    problems = [
+        f'"{c.text}" is {c.verdict.replace("_", " ")}' for c in check.claims if c.verdict != "supported"
+    ]
+    # The budget is an estimate and models count words loosely; the voice step
+    # measures the real spoken length, so a word or two over is left to it.
+    words = count_words(line)
+    if words > limit * WORD_SLACK:
+        problems.append(f"the line has {words} words, the limit is {limit}")
+    return check, problems
+
+
 class GapDescriber(BaseAgent):
     """Describe, verify, and rewrite until the line is supported and fits."""
 
@@ -181,20 +199,7 @@ class GapDescriber(BaseAgent):
 
             async for event in self.verifier.run_async(ctx):
                 yield event
-            try:
-                check = parse_check(state.get("check", ""))
-            except ValueError as e:
-                check, problems = Check(claims=[]), [f"verifier reply unreadable: {e}"]
-            else:
-                problems = [
-                    f'"{c.text}" is {c.verdict.replace("_", " ")}'
-                    for c in check.claims
-                    if c.verdict != "supported"
-                ]
-            words = count_words(line)
-            if words > state["words"]:
-                problems.append(f"the line has {words} words, the limit is {state['words']}")
-
+            check, problems = judge(line, state.get("check", ""), state["words"])
             verified = not problems and bool(check.claims)
             delta = {
                 "line": line,

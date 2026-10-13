@@ -31,26 +31,57 @@ TOKEN_FACTORY = "https://developer.amd.com.cn/radeon/api/v1"
 
 
 @dataclass(frozen=True)
-class Settings:
+class Endpoint:
+    """One OpenAI-compatible model: Token Factory, or vLLM on our own MI300X."""
+
+    model: str
     api_base: str
     api_key: str
-    describer: str
-    verifier: str
+    extra_body: dict | None = None
+
+    def llm(self) -> LiteLlm:
+        extra = {"extra_body": self.extra_body} if self.extra_body else {}
+        return LiteLlm(
+            model=f"openai/{self.model}",
+            api_base=self.api_base,
+            api_key=self.api_key,
+            num_retries=3,  # Token Factory answers 429 when too many calls run at once
+            **extra,
+        )
+
+
+@dataclass(frozen=True)
+class Settings:
+    describer: Endpoint
+    verifier: Endpoint
 
     @classmethod
     def from_env(cls) -> Settings:
-        key = os.environ.get("AMD_API_KEY", "")
+        """Read the two endpoints from the environment.
+
+        Both default to AMD Token Factory. The describer can point at our own
+        vLLM server instead, with SOTTOVOCE_DESCRIBER_BASE and _KEY.
+        """
+        env = os.environ.get
+        key = env("AMD_API_KEY", "")
         if not key:
             raise RuntimeError("set AMD_API_KEY to your AMD Token Factory key")
+        effort = env("SOTTOVOCE_VERIFIER_EFFORT", "low")
         return cls(
-            api_base=os.environ.get("SOTTOVOCE_API_BASE", TOKEN_FACTORY),
-            api_key=key,
-            describer=os.environ.get("SOTTOVOCE_DESCRIBER", "Gemma-4-31B-IT"),
-            verifier=os.environ.get("SOTTOVOCE_VERIFIER", "Qwen3.8-27B"),
+            describer=Endpoint(
+                model=env("SOTTOVOCE_DESCRIBER", "DeepSeek-V4-Flash-Vision-Exp"),
+                api_base=env("SOTTOVOCE_DESCRIBER_BASE", TOKEN_FACTORY),
+                api_key=env("SOTTOVOCE_DESCRIBER_KEY", key),
+            ),
+            verifier=Endpoint(
+                model=env("SOTTOVOCE_VERIFIER", "Qwen3.8-27B"),
+                api_base=TOKEN_FACTORY,
+                api_key=key,
+                # Measured on Qwen3.8-27B: default reasoning took 35 s, "low" 15 s with the
+                # same verdicts, and thinking off (4.5 s) called a true claim contradicted.
+                extra_body={"reasoning_effort": effort} if effort else None,
+            ),
         )
-
-    def model(self, name: str) -> LiteLlm:
-        return LiteLlm(model=f"openai/{name}", api_base=self.api_base, api_key=self.api_key)
 
 
 class Claim(BaseModel):
@@ -135,9 +166,13 @@ class GapDescriber(BaseAgent):
     async def _run_async_impl(self, ctx: InvocationContext) -> AsyncGenerator[Event, None]:
         state = ctx.session.state
         for round_ in range(1, self.max_rounds + 1):
-            async for event in self.describer.run_async(ctx):
-                yield event
-            line = clean_line(state.get("line", ""))
+            if round_ == 1 and state.get("draft"):
+                # A describer's own line, or one from an existing script: check it first.
+                line = clean_line(state["draft"])
+            else:
+                async for event in self.describer.run_async(ctx):
+                    yield event
+                line = clean_line(state.get("line", ""))
             yield Event(
                 author=self.name,
                 invocation_id=ctx.invocation_id,
@@ -166,6 +201,10 @@ class GapDescriber(BaseAgent):
                 "rounds": round_,
                 "claims": [c.model_dump() for c in check.claims],
                 "problems": problems,
+                "history": [
+                    *state.get("history", []),
+                    {"round": round_, "line": line, "problems": problems},
+                ],
                 "status": "verified" if verified else "needs_review",
                 "feedback": (
                     f'Your last line was: "{line}". Rewrite it and fix these problems: '
@@ -185,14 +224,14 @@ class GapDescriber(BaseAgent):
 def build_agent(settings: Settings, max_rounds: int = 3) -> GapDescriber:
     describer = LlmAgent(
         name="describer",
-        model=settings.model(settings.describer),
+        model=settings.describer.llm(),
         instruction=_describer_instruction,
         output_key="line",
         generate_content_config=types.GenerateContentConfig(temperature=0.3, max_output_tokens=400),
     )
     verifier = LlmAgent(
         name="verifier",
-        model=settings.model(settings.verifier),
+        model=settings.verifier.llm(),
         instruction=_verifier_instruction,
         output_key="check",
         generate_content_config=types.GenerateContentConfig(temperature=0.0, max_output_tokens=800),
@@ -213,6 +252,7 @@ class GapResult:
     rounds: int
     claims: list[dict]
     problems: list[str]
+    history: list[dict] = field(default_factory=list)
     tokens: dict[str, list[int]] = field(default_factory=dict)
 
 
@@ -224,10 +264,14 @@ async def describe_gap(
     before: str = "",
     after: str = "",
     mime_type: str = "image/jpeg",
+    draft: str = "",
     settings: Settings | None = None,
     max_rounds: int = 3,
 ) -> GapResult:
-    """Run the describe-verify loop for one pause and return the outcome."""
+    """Run the describe-verify loop for one pause and return the outcome.
+
+    With `draft`, the first round checks that line instead of writing one.
+    """
     if isinstance(audience, str):
         audience = AUDIENCES[audience]
     settings = settings or Settings.from_env()
@@ -236,7 +280,13 @@ async def describe_gap(
         app_name="sottovoce",
         user_id="describer",
         session_id=uuid.uuid4().hex,
-        state={"words": words, "style": audience.style, "before": before, "after": after},
+        state={
+            "words": words,
+            "style": audience.style,
+            "before": before,
+            "after": after,
+            "draft": draft,
+        },
     )
     message = types.Content(
         role="user",
@@ -262,5 +312,6 @@ async def describe_gap(
         rounds=state.get("rounds", 0),
         claims=state.get("claims", []),
         problems=state.get("problems", []),
+        history=state.get("history", []),
         tokens=tokens,
     )

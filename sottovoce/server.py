@@ -8,6 +8,7 @@ from __future__ import annotations
 import asyncio
 import json
 import os
+import shutil
 import uuid
 from dataclasses import asdict, dataclass, field
 from pathlib import Path
@@ -118,20 +119,11 @@ async def create_job(video: UploadFile = File(...), audience: str = Form("it")) 
         raise HTTPException(400, f"audience must be one of {sorted(AUDIENCES)}")
     job = Job(uuid.uuid4().hex[:12], Path(video.filename or "video").stem[:80], audience)
     job.dir.mkdir(parents=True)
-    source = job.dir / FILES["source"]
-    size = 0
-    with source.open("wb") as f:
-        while chunk := await video.read(1 << 20):
-            size += len(chunk)
-            if size > MAX_BYTES:
-                raise HTTPException(413, "video larger than 300 MB")
-            f.write(chunk)
     try:
-        seconds = await asyncio.to_thread(duration, source)
-    except Exception:
-        raise HTTPException(400, "not a video ffmpeg can read") from None
-    if seconds > MAX_SECONDS:
-        raise HTTPException(400, f"video is {seconds:.0f} s; the limit is {MAX_SECONDS:.0f} s")
+        await _receive(video, job.dir / FILES["source"])
+    except HTTPException:
+        shutil.rmtree(job.dir, ignore_errors=True)
+        raise
     jobs[job.id] = job
     job.save()
     task = asyncio.create_task(run_job(job))
@@ -226,6 +218,23 @@ async def approve_cue(job_id: str, index: int) -> dict:
     cue.status = "approved"
     await _save(job, script)
     return asdict(cue)
+
+
+async def _receive(video: UploadFile, source: Path) -> None:
+    """Save an upload, refusing anything too big, too long, or not a video."""
+    size = 0
+    with source.open("wb") as f:
+        while chunk := await video.read(1 << 20):
+            size += len(chunk)
+            if size > MAX_BYTES:
+                raise HTTPException(413, "video larger than 300 MB")
+            f.write(chunk)
+    try:
+        seconds = await asyncio.to_thread(duration, source)
+    except Exception:
+        raise HTTPException(400, "not a video ffmpeg can read") from None
+    if seconds > MAX_SECONDS:
+        raise HTTPException(400, f"video is {seconds:.0f} s; the limit is {MAX_SECONDS:.0f} s")
 
 
 def _job(job_id: str) -> Job:

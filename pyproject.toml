@@ -9,7 +9,10 @@ description = "Audio description for video, written to fit the pauses and checke
 readme = "README.md"
 license = "MIT"
 requires-python = ">=3.11"
-dependencies = []
+dependencies = [
+    "google-adk>=2.11",
+    "litellm>=1.105",
+]
 
 [project.optional-dependencies]
 dev = ["pytest>=8"]

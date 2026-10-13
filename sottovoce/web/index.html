@@ -1,0 +1,68 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Sottovoce</title>
+  <meta name="description" content="Audio description that fits the pauses and checks its own facts.">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header class="top">
+    <div class="brand"><span class="mark" aria-hidden="true"></span>Sottovoce</div>
+    <p class="tag">Audio description that fits the pauses and checks its own facts.</p>
+    <p class="stack">Vision models on AMD Instinct GPUs (AMD Token Factory) · agents on Google ADK · voices by Google Cloud</p>
+  </header>
+
+  <main class="layout">
+    <aside class="side">
+      <section class="card">
+        <h2>Describe a video</h2>
+        <form id="upload">
+          <label class="field">Video file (up to 5 minutes)
+            <input type="file" name="video" accept="video/*" required>
+          </label>
+          <label class="field">Audience
+            <select name="audience">
+              <option value="it">Italian audio description</option>
+              <option value="en">English, for visitors</option>
+              <option value="extended">Italian, extended</option>
+            </select>
+          </label>
+          <button type="submit">Start</button>
+          <p class="hint" id="upload-status" role="status"></p>
+        </form>
+      </section>
+      <section class="card">
+        <h2>Library</h2>
+        <ul class="library" id="library"></ul>
+      </section>
+    </aside>
+
+    <section class="main">
+      <p class="empty" id="empty">Pick a video from the library, or upload one.</p>
+      <article id="job" hidden>
+        <div class="job-head">
+          <h1 id="title"></h1>
+          <span class="badge" id="job-status"></span>
+        </div>
+        <div class="player">
+          <video id="video" controls playsinline preload="metadata"></video>
+          <div class="player-bar">
+            <label class="switch"><input type="checkbox" id="ad-toggle" checked> Audio description on</label>
+            <span class="downloads">
+              <a id="dl-video" download>MP4</a>
+              <a id="dl-narration" download>Narration WAV</a>
+              <a id="dl-vtt" download>WebVTT</a>
+            </span>
+          </div>
+        </div>
+        <dl class="stats" id="stats"></dl>
+        <h2 class="cues-title">Lines <span class="hint">Every fact in a line is checked against the frames by a second model. Edit any line to check and re-voice it.</span></h2>
+        <ol class="cues" id="cues"></ol>
+      </article>
+    </section>
+  </main>
+  <script src="app.js"></script>
+</body>
+</html>

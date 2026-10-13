@@ -7,6 +7,7 @@ length is capped by a word budget derived from the voice's speaking rate.
 
 from __future__ import annotations
 
+import math
 from dataclasses import dataclass
 
 
@@ -85,3 +86,33 @@ def find_gaps(
         if span is not None:
             spoken_until = span.end if spoken_until is None else max(spoken_until, span.end)
     return gaps
+
+
+def split_long(
+    gaps: list[Gap],
+    *,
+    max_len: float = 10.0,
+    rest: float = 1.5,
+    words_per_second: float = 2.5,
+    min_words: int = 3,
+) -> list[Gap]:
+    """Split pauses longer than `max_len` into shorter ones.
+
+    A long silent scene is then described as it unfolds, not in one sentence
+    at its start. Every piece but the last ends with `rest` seconds of quiet,
+    so the narration never runs wall to wall.
+    """
+    out: list[Gap] = []
+    for gap in gaps:
+        if gap.length <= max_len:
+            out.append(gap)
+            continue
+        n = math.ceil(gap.length / max_len)
+        step = gap.length / n
+        for i in range(n):
+            start = gap.start + i * step
+            end = gap.start + (i + 1) * step - (rest if i < n - 1 else 0.0)
+            words = int((end - start) * words_per_second)
+            if words >= min_words:
+                out.append(Gap(round(start, 3), round(end, 3), words))
+    return out

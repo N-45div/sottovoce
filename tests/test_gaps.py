@@ -1,6 +1,6 @@
 import pytest
 
-from sottovoce.gaps import Gap, Span, find_gaps, speech_spans
+from sottovoce.gaps import Gap, Span, find_gaps, speech_spans, split_long
 
 
 def test_close_words_join_into_one_span():
@@ -60,3 +60,17 @@ def test_bad_arguments_are_rejected():
         find_gaps([], -1.0)
     with pytest.raises(ValueError):
         find_gaps([], 5.0, words_per_second=0)
+
+
+def test_short_pauses_are_left_alone():
+    gaps = [Gap(0.0, 8.0, 20)]
+    assert split_long(gaps) == gaps
+
+
+def test_long_pause_is_split_with_rests_between_lines():
+    pieces = split_long([Gap(0.0, 25.0, 62)], max_len=10.0, rest=1.5, words_per_second=2.0)
+    assert len(pieces) == 3
+    assert pieces[0].start == 0.0
+    assert pieces[-1].end == 25.0
+    assert all(b.start - a.end == pytest.approx(1.5, abs=0.01) for a, b in zip(pieces, pieces[1:]))
+    assert pieces[0].words == int((25 / 3 - 1.5) * 2.0)

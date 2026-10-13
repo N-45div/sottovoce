@@ -143,13 +143,22 @@ def _describer_instruction(ctx: ReadonlyContext) -> str:
 
 def _verifier_instruction(ctx: ReadonlyContext) -> str:
     s = ctx.state
+    # The first version merged words into loose claims and passed swaps like
+    # "train engines" for rocket engines (8 of 14 planted errors caught); every
+    # noun now gets its own claim, worded with the line's own words.
     return (
-        "You check an audio description line against the keyframes.\n\n"
+        "You are a strict fact checker for audio description. Compare the line with "
+        "the keyframes.\n\n"
         f"Line: {s['line']}\n\n"
-        "Split the line into short factual claims about what is on screen. For each "
-        "claim give a verdict: 'supported' if a frame clearly shows it, 'contradicted' "
-        "if the frames show otherwise, 'not_visible' if the frames cannot confirm it. "
-        "A name counts as supported only if the dialogue says it.\n"
+        "Split the line into atomic claims: one claim for every person (with any age "
+        "or gender word), object, vehicle, place, colour, number, action and quoted "
+        "text. Keep the line's own words in each claim, so 'i motori del razzo' becomes "
+        "'the engines are rocket engines'.\n"
+        "Verdicts: 'supported' if a frame clearly shows exactly this; 'contradicted' if "
+        "the frames show something different (another kind of object, vehicle or "
+        "place, another age or gender, another colour, other text); 'not_visible' if no "
+        "frame can confirm it. If any word in a claim is wrong, the claim is "
+        "contradicted. A name counts as supported only if the dialogue says it.\n"
         f"Dialogue before: {s.get('before') or '(none)'}\n"
         f"Dialogue after: {s.get('after') or '(none)'}\n\n"
         'Reply with JSON only: {"claims": [{"text": "...", "verdict": "...", '

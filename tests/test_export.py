@@ -80,7 +80,7 @@ def test_only_lines_longer_than_their_pause_hold_the_picture():
         Cue(10.0, 12.0, 5, [], audio="b.wav", seconds=5.0),
         Cue(20.0, 21.0, 5, []),
     ]
-    assert holds(cues) == [(12.0, 3.3)]
+    assert holds(cues) == [(12.0, 3.3, 12.0)]
 
 
 def test_times_after_a_hold_move_later_by_its_length():
@@ -94,6 +94,23 @@ def test_times_after_a_hold_move_later_by_its_length():
 def test_held_video_grows_by_the_holds(tmp_path):
     out = tmp_path / "held.mp4"
     hold_frames(CLIP, [(3.0, 2.0), (6.0, 1.5)], 8.0, out)
+    probe = subprocess.run(
+        ["ffprobe", "-v", "error", "-show_entries", "format=duration", "-of", "csv=p=0", str(out)],
+        capture_output=True, text=True, check=True,
+    )
+    assert float(probe.stdout) == pytest.approx(8.0 + 2.0 + 1.5, abs=0.15)
+
+
+def test_a_pointing_hold_freezes_on_the_frame_that_was_described():
+    pointing = Cue(44.13, 44.17, 22, [43.0, 45.2], audio="a.wav", seconds=6.0, focus="Let's take a look.")
+    pause = Cue(60.0, 61.0, 22, [60.3, 60.7], audio="b.wav", seconds=4.0)
+    assert holds([pointing, pause]) == [(44.17, 6.26, 46.0), (61.0, 3.3, 61.0)]
+
+
+@pytest.mark.skipif(not CLIP.exists(), reason="test clip not downloaded")
+def test_a_hold_on_a_later_frame_keeps_the_same_length(tmp_path):
+    out = tmp_path / "held.mp4"
+    hold_frames(CLIP, [(3.0, 2.0, 5.0), (6.0, 1.5)], 8.0, out)
     probe = subprocess.run(
         ["ffprobe", "-v", "error", "-show_entries", "format=duration", "-of", "csv=p=0", str(out)],
         capture_output=True, text=True, check=True,

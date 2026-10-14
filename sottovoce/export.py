@@ -71,40 +71,58 @@ def mix(video: Path, narration_wav: Path, cues: list[Cue], out: Path, duck: floa
 
 
 HOLD_PAD = 0.3  # seconds of quiet after a held line, before the film resumes
+SETTLE = 0.8  # seconds past the last described frame, clear of a dissolve
 
 
-def holds(cues: list[Cue]) -> list[tuple[float, float]]:
-    """Where extended description holds the picture, and for how long.
+def holds(cues: list[Cue]) -> list[tuple[float, float, float]]:
+    """Where extended description holds the picture, for how long, and on which frame.
 
-    A line longer than its pause holds the last frame of the pause until the
-    line ends, so the film never talks over it.
+    A line longer than its pause holds the picture until the line ends, so the
+    lesson never talks over it. The held frame is the latest one the line was
+    written from: after "let's take a look at…" the diagram appears a moment
+    after the sentence, and freezing on the teacher's face instead would show
+    one thing while describing another.
     """
-    return [
-        (cue.end, round(cue.seconds - (cue.end - cue.start) + HOLD_PAD, 3))
-        for cue in cues
-        if cue.audio and cue.seconds > cue.end - cue.start
-    ]
+    out = []
+    for cue in cues:
+        if not (cue.audio and cue.seconds > cue.end - cue.start):
+            continue
+        latest = max(cue.frames, default=cue.end)
+        # Lessons cut to diagrams with dissolves; a frame mid-dissolve shows the
+        # teacher and the diagram blended, so freeze a little past it.
+        show = latest + SETTLE if latest > cue.end + 0.05 else cue.end
+        out.append((cue.end, round(cue.seconds - (cue.end - cue.start) + HOLD_PAD, 3), round(show, 3)))
+    return out
 
 
-def shift(t: float, held: list[tuple[float, float]]) -> float:
+def shift(t: float, held: list[tuple]) -> float:
     """Where time `t` of the original lands once the holds are inserted."""
-    return round(t + sum(extra for at, extra in held if at <= t), 3)
+    return round(t + sum(h[1] for h in held if h[0] <= t), 3)
 
 
-def hold_frames(video: Path, held: list[tuple[float, float]], total: float, out: Path) -> None:
-    """Re-cut the video with each hold: a frozen frame and silence."""
-    edges = [0.0, *(at for at, _ in held), total]
-    extras = [extra for _, extra in held] + [0.0]
+def hold_frames(video: Path, held: list[tuple], total: float, out: Path) -> None:
+    """Re-cut the video with each hold: a still of the described frame, and silence."""
+    edges = [0.0, *(h[0] for h in held), total]
     parts, labels = [], []
     for i, (a, b) in enumerate(zip(edges, edges[1:])):
-        pad_v = f",tpad=stop_mode=clone:stop_duration={extras[i]}" if extras[i] else ""
-        pad_a = f",apad=pad_dur={extras[i]}" if extras[i] else ""
-        parts.append(f"[0:v]trim=start={a}:end={b},setpts=PTS-STARTPTS{pad_v}[v{i}]")
+        parts.append(f"[0:v]trim=start={a}:end={b},setpts=PTS-STARTPTS[v{i}]")
         parts.append(
             f"[0:a]atrim=start={a}:end={b},asetpts=PTS-STARTPTS,"
-            f"aformat=sample_rates=48000:channel_layouts=stereo{pad_a}[a{i}]"
+            f"aformat=sample_rates=48000:channel_layouts=stereo[a{i}]"
         )
         labels.append(f"[v{i}][a{i}]")
+        if i < len(held):
+            extra = held[i][1]
+            show = min(held[i][2] if len(held[i]) > 2 else held[i][0], total - 0.1)
+            parts.append(
+                f"[0:v]trim=start={show}:duration=0.04,setpts=PTS-STARTPTS,"
+                f"tpad=stop_mode=clone:stop_duration={max(extra - 0.04, 0.0)}[s{i}]"
+            )
+            parts.append(
+                f"anullsrc=r=48000:cl=stereo,atrim=duration={extra},"
+                f"aformat=sample_rates=48000:channel_layouts=stereo[n{i}]"
+            )
+            labels.append(f"[s{i}][n{i}]")
     graph = ";".join(parts) + f";{''.join(labels)}concat=n={len(labels)}:v=1:a=1[v][a]"
     subprocess.run(
         [
@@ -134,7 +152,8 @@ def export(script: Script, out_dir: Path | str) -> dict[str, Path]:
     }
     video, total = Path(script.video), script.duration
     cues = [c for c in script.cues if c.status in AIRED]
-    held = holds(cues) if AUDIENCES[script.audience].extended else []
+    audience = AUDIENCES.get(script.audience)
+    held = holds(cues) if audience and audience.extended else []
     if held:
         video = out_dir / "held.mp4"
         hold_frames(Path(script.video), held, total, video)
@@ -142,7 +161,7 @@ def export(script: Script, out_dir: Path | str) -> dict[str, Path]:
             replace(c, start=shift(c.start, held), end=shift(c.start, held) + max(c.end - c.start, c.seconds))
             for c in cues
         ]
-        total += sum(extra for _, extra in held)
+        total += sum(h[1] for h in held)
     files["vtt"].write_text(to_vtt(cues), encoding="utf-8")
     files["narration"].write_bytes(write_wav(narration(cues, out_dir / "audio", total)))
     mix(video, files["narration"], cues, files["video"])

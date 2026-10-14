@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import io
 import os
+import re
 import wave
 from dataclasses import dataclass
 from functools import cache
@@ -70,11 +71,30 @@ def trim_silence(wav: bytes) -> bytes:
     return write_wav(samples[max(0, loud[0] - keep) : loud[-1] + keep])
 
 
+_CAPS_RUN = re.compile(r"\b[A-ZÀ-ÖØ-Þ][A-ZÀ-ÖØ-Þ'’-]*(?:\s+[A-ZÀ-ÖØ-Þ][A-ZÀ-ÖØ-Þ'’-]*)*\b")
+
+
+def speakable(text: str) -> str:
+    """Turn quoted capitals into normal case so the voice reads words, not letters.
+
+    The Italian voice spelled "ROBOTICIST CREATES KILLER ROBOTS" letter by
+    letter: 12.8 s against 7.6 s in normal case. Short runs such as "RAI" or
+    "AMD" are acronyms and stay as they are.
+    """
+    def fix(match: re.Match) -> str:
+        words = match.group(0).split()
+        if not any(len(w) >= 5 for w in words):
+            return match.group(0)
+        return " ".join(w.capitalize() for w in words)
+
+    return _CAPS_RUN.sub(fix, text)
+
+
 def synthesize(text: str, audience: str = "it", rate: float = 1.0) -> bytes:
     """Return 24 kHz mono 16-bit WAV for `text` in the audience's voice, trimmed."""
     language, name = VOICES[audience]
     response = _client().synthesize_speech(
-        input=tts.SynthesisInput(text=text),
+        input=tts.SynthesisInput(text=speakable(text)),
         voice=tts.VoiceSelectionParams(language_code=language, name=name),
         audio_config=tts.AudioConfig(
             audio_encoding=tts.AudioEncoding.LINEAR16,

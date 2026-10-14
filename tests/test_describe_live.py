@@ -5,14 +5,13 @@ They need AMD_API_KEY and the test clip, and are skipped without them.
 
 import asyncio
 import os
-from pathlib import Path
 
 import pytest
 
 from sottovoce.describe import count_words, describe_gap
 from sottovoce.shots import extract_frame
 
-CLIP = Path(r"C:\Users\DivijN\sottovoce-media\tos_bridge_150s.mp4")
+from media import CLIP
 BRIDGE = 30.0  # Tears of Steel: a couple argue on a bridge in Amsterdam
 
 pytestmark = pytest.mark.skipif(

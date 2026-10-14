@@ -1,6 +1,5 @@
 import json
 import subprocess
-from pathlib import Path
 
 import numpy as np
 import pytest
@@ -9,7 +8,7 @@ from sottovoce.export import export, hold_frames, holds, narration, shift, times
 from sottovoce.pipeline import Cue, Script
 from sottovoce.voice import SAMPLE_RATE, write_wav
 
-CLIP = Path(r"C:\Users\DivijN\sottovoce-media\tos_bridge_150s.mp4")
+from media import CLIP
 
 
 def tone(seconds: float) -> bytes:

@@ -1,7 +1,6 @@
 import base64
 import json
 import os
-from pathlib import Path
 
 import pytest
 from fastapi.testclient import TestClient
@@ -11,7 +10,7 @@ from sottovoce import server
 from sottovoce.agent_api import read_request
 from sottovoce.shots import extract_frame
 
-CLIP = Path(r"C:\Users\DivijN\sottovoce-media\tos_bridge_150s.mp4")
+from media import CLIP
 
 
 def test_request_splits_images_from_options():

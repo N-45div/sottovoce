@@ -1,10 +1,9 @@
-from pathlib import Path
 
 import pytest
 
 from sottovoce.asr import Word, dialogue_around, transcribe
 
-CLIP = Path(r"C:\Users\DivijN\sottovoce-media\tos_bridge_150s.mp4")
+from media import CLIP
 
 
 def test_dialogue_around_a_pause():

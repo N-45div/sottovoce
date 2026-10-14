@@ -70,7 +70,12 @@ The web app takes an upload, shows each line as it is written and checked, plays
 
 ## Tests
 
-`pytest` runs the logic tests. With `AMD_API_KEY`, `GOOGLE_CLOUD_PROJECT` and the test clip present, it also runs live tests against the real models and real film frames, including a planted-error test. The tests use no mocks.
+`pytest` runs the logic tests. To also run the live tests against the real models and real film frames:
+
+1. Fetch the test clip: `python scripts/fetch_test_clip.py media`, which saves the first 150 s of *Tears of Steel*.
+2. Set `AMD_API_KEY` and `GOOGLE_CLOUD_PROJECT`.
+
+The live tests include a planted-error test. The tests use no mocks.
 
 `python -m sottovoce.bench outputs/script.json` measures the checker. It plants one false detail in every verified line (a swapped object, person, place or colour, or an added object) and reports how many it catches, and how often it flags a line that was right.
 

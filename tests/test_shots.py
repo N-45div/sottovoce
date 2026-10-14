@@ -1,11 +1,10 @@
-from pathlib import Path
 
 import pytest
 
 from sottovoce.gaps import Span
 from sottovoce.shots import detect_cuts, duration, extract_frame, frame_times, shots_from_cuts
 
-CLIP = Path(r"C:\Users\DivijN\sottovoce-media\tos_bridge_150s.mp4")
+from media import CLIP
 needs_clip = pytest.mark.skipif(not CLIP.exists(), reason="test clip not downloaded")
 
 

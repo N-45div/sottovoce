@@ -2,15 +2,13 @@
 
 import json
 import shutil
-from pathlib import Path
 
 import pytest
 from fastapi.testclient import TestClient
 
 from sottovoce import server
 
-RUN = Path(r"C:\Users\DivijN\sottovoce-media\out_it")
-CLIP = Path(r"C:\Users\DivijN\sottovoce-media\tos_bridge_150s.mp4")
+from media import CLIP, RUN
 JOB = "0123456789ab"
 
 pytestmark = pytest.mark.skipif(not (RUN / "script.json").exists(), reason="needs a finished run")

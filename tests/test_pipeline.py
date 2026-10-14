@@ -1,4 +1,3 @@
-from pathlib import Path
 
 import pytest
 
@@ -7,7 +6,7 @@ from sottovoce.gaps import speech_spans
 from sottovoce.pipeline import Cue, Script, plan
 from sottovoce.shots import duration
 
-CLIP = Path(r"C:\Users\DivijN\sottovoce-media\tos_bridge_150s.mp4")
+from media import CLIP
 
 
 def test_script_survives_a_json_round_trip():

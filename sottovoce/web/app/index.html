@@ -3,66 +3,93 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Sottovoce</title>
-  <meta name="description" content="Audio description that fits the pauses and checks its own facts.">
-  <link rel="stylesheet" href="style.css">
+  <title>Sottovoce · App</title>
+  <meta name="description" content="Upload a video, watch every audio-description line get written and checked, then review and listen.">
+  <link rel="icon" href="/assets/logo.svg" type="image/svg+xml">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Instrument+Serif&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/assets/site.css">
+  <link rel="stylesheet" href="/assets/app.css">
 </head>
-<body>
-  <header class="top">
-    <div class="brand"><span class="mark" aria-hidden="true"></span>Sottovoce</div>
-    <p class="tag">Audio description that fits the pauses and checks its own facts.</p>
-    <p class="stack">Vision models on AMD Instinct GPUs (AMD Token Factory) · agents on Google ADK · voices by Google Cloud</p>
+<body class="app-body">
+  <header class="nav">
+    <div class="container app-container">
+      <a class="logo" href="/"><img class="logo-mark" src="/assets/logo.svg" alt="">Sottovoce</a>
+      <nav class="nav-links" aria-label="Site">
+        <a href="/">Home</a>
+        <a href="/pricing/">Pricing</a>
+        <a href="https://github.com/N-45div/sottovoce">GitHub</a>
+      </nav>
+    </div>
   </header>
 
-  <main class="layout">
+  <div class="container app-container app-layout">
     <aside class="side">
-      <section class="card">
-        <h2>Describe a video</h2>
+      <section class="card upload-card">
+        <h3>Describe a video</h3>
         <form id="upload">
-          <label class="field">Video file (up to 5 minutes)
+          <label class="drop" id="drop">
             <input type="file" name="video" accept="video/*" required>
+            <span class="drop-title" id="drop-title">Drop a video here, or choose one</span>
+            <span class="small">MP4 or MOV, up to 5 minutes and 30 MB</span>
           </label>
-          <label class="field">Audience
-            <select name="audience">
-              <option value="it">Italian audio description</option>
-              <option value="en">English, for visitors</option>
-              <option value="extended">Italian, extended</option>
-            </select>
-          </label>
-          <button type="submit">Start</button>
-          <p class="hint" id="upload-status" role="status"></p>
+          <fieldset class="segmented" aria-label="Audience">
+            <label><input type="radio" name="audience" value="it" checked><span>Italiano</span></label>
+            <label><input type="radio" name="audience" value="en"><span>English</span></label>
+            <label><input type="radio" name="audience" value="extended"><span>Esteso</span></label>
+          </fieldset>
+          <div class="progress" id="progress" hidden><span id="progress-bar"></span></div>
+          <button class="btn btn-primary" type="submit">Describe a video</button>
+          <p class="small" id="upload-status" role="status"></p>
         </form>
       </section>
       <section class="card">
-        <h2>Library</h2>
+        <h3>Library</h3>
         <ul class="library" id="library"></ul>
       </section>
     </aside>
 
-    <section class="main">
-      <p class="empty" id="empty">Pick a video from the library, or upload one.</p>
+    <main class="main">
+      <section class="card empty" id="empty">
+        <p class="eyebrow">Start here</p>
+        <h2>Pick a film from the library, or upload your own.</h2>
+        <p class="body">Every line is written by Gemma 4, checked against the picture by Qwen3.8, and voiced to fit its pause. Nothing is aired until it is verified or you approve it.</p>
+        <button class="btn btn-ghost" id="open-sample" type="button" hidden>Open the sample film</button>
+      </section>
+
       <article id="job" hidden>
         <div class="job-head">
-          <h1 id="title"></h1>
+          <div>
+            <p class="eyebrow" id="job-audience"></p>
+            <h2 class="job-title" id="title"></h2>
+          </div>
           <span class="badge" id="job-status"></span>
         </div>
-        <div class="player">
+
+        <div class="player-card card">
           <video id="video" controls playsinline preload="metadata"></video>
+          <div class="timeline" id="timeline" aria-label="Lines on the timeline"><span class="playhead" id="playhead"></span></div>
           <div class="player-bar">
-            <label class="switch"><input type="checkbox" id="ad-toggle" checked> Audio description on</label>
+            <label class="switch"><input type="checkbox" id="ad-toggle" checked><span class="switch-track"></span>Audio description</label>
             <span class="downloads">
-              <a id="dl-video" download>MP4</a>
-              <a id="dl-narration" download>Narration WAV</a>
-              <a id="dl-vtt" download>WebVTT</a>
+              <a class="link" id="dl-video" download>MP4</a>
+              <a class="link" id="dl-narration" download>Narration WAV</a>
+              <a class="link" id="dl-vtt" download>WebVTT</a>
             </span>
           </div>
         </div>
+
         <dl class="stats" id="stats"></dl>
-        <h2 class="cues-title">Lines <span class="hint">Every fact in a line is checked against the frames by a second model. Edit any line to check and re-voice it.</span></h2>
+
+        <div class="cues-head">
+          <h3>Lines</h3>
+          <p class="small">Edit a line and it is checked against the frames, re-voiced and re-mixed. Lines that need review are not aired.</p>
+        </div>
         <ol class="cues" id="cues"></ol>
       </article>
-    </section>
-  </main>
-  <script src="app.js"></script>
+    </main>
+  </div>
+  <script src="/assets/app.js" defer></script>
 </body>
 </html>

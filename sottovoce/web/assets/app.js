@@ -1,8 +1,14 @@
 "use strict";
 
 const $ = (id) => document.getElementById(id);
-const AUDIENCES = { it: "Italian", en: "English", extended: "Italian, extended" };
-const STATUS = { verified: "verified", approved: "approved by a person", needs_review: "needs review · not aired", skipped: "black screen · nothing to describe", pending: "writing…" };
+const AUDIENCES = { it: "Italiano", en: "English, for visitors", extended: "Esteso: the picture waits" };
+const STATUS = {
+  verified: "verified",
+  approved: "approved by a person",
+  needs_review: "needs review · not aired",
+  skipped: "black screen · nothing to describe",
+  pending: "writing…",
+};
 let current = null;
 let source = null;
 
@@ -10,13 +16,27 @@ function el(tag, attrs = {}, ...children) {
   const node = document.createElement(tag);
   for (const [key, value] of Object.entries(attrs)) {
     if (key === "class") node.className = value;
+    else if (key === "style") node.style.cssText = value;
     else if (key.startsWith("on")) node.addEventListener(key.slice(2), value);
-    else if (value !== undefined && value !== null) node.setAttribute(key, value);
+    else if (value !== undefined && value !== null && value !== false) node.setAttribute(key, value);
   }
-  for (const child of children.flat()) {
-    if (child !== null && child !== undefined) node.append(child);
-  }
+  for (const child of children.flat()) if (child !== null && child !== undefined) node.append(child);
   return node;
+}
+
+// Extended description holds the picture while a long line is spoken, so with
+// description on, every time after a hold lands later. Same rule as export.py.
+function timeMap() {
+  const extended = current?.audience === "extended" && $("ad-toggle").checked && current.status === "done";
+  const cues = current?.script?.cues || [];
+  const holds = extended
+    ? cues
+        .filter((c) => (c.status === "verified" || c.status === "approved") && c.audio && c.seconds > c.end - c.start)
+        .map((c) => [c.end, c.seconds - (c.end - c.start) + 0.3])
+    : [];
+  const shift = (t) => t + holds.filter(([at]) => at <= t).reduce((sum, [, extra]) => sum + extra, 0);
+  const total = (current?.script?.duration || $("video").duration || 0) + holds.reduce((sum, [, extra]) => sum + extra, 0);
+  return { shift, total };
 }
 
 const clock = (s) => {
@@ -35,18 +55,23 @@ async function api(path, options) {
 
 async function loadLibrary() {
   const jobs = await api("/api/jobs");
-  const list = $("library");
-  list.replaceChildren(
+  $("library").replaceChildren(
     ...jobs.map((job) =>
       el("li", {},
         el("button", { type: "button", "aria-current": String(current?.id === job.id), onclick: () => openJob(job.id) },
-          el("span", {}, job.title),
-          el("small", {}, `${AUDIENCES[job.audience] || job.audience} · ${job.status}`),
+          el("span", { class: "lib-title" }, job.title),
+          el("span", { class: "lib-meta" },
+            el("span", { class: "badge" }, AUDIENCES[job.audience]?.split(":")[0] || job.audience),
+            el("span", { class: `badge ${job.status}` }, job.status)),
         ),
       ),
     ),
   );
-  if (!jobs.length) list.append(el("li", { class: "hint" }, "No videos yet."));
+  if (!jobs.length) $("library").append(el("li", { class: "small" }, "No videos yet."));
+  const sample = jobs.find((j) => j.status === "done" && j.audience === "it") || jobs.find((j) => j.status === "done");
+  $("open-sample").hidden = !sample || Boolean(current);
+  if (sample) $("open-sample").onclick = () => openJob(sample.id);
+  return jobs;
 }
 
 async function openJob(id) {
@@ -56,10 +81,11 @@ async function openJob(id) {
   history.replaceState(null, "", `#${id}`);
   $("empty").hidden = true;
   $("job").hidden = false;
-  $("title").textContent = `${job.title} · ${AUDIENCES[job.audience] || job.audience}`;
+  $("job-audience").textContent = AUDIENCES[job.audience] || job.audience;
+  $("title").textContent = job.title;
   renderStatus(job);
   renderStats(job);
-  renderCues(job.script ? job.script.cues : []);
+  renderCues(job.script ? job.script.cues : [], false);
   setVideo();
   await loadLibrary();
   if (job.status === "queued" || job.status === "running") follow(id);
@@ -79,55 +105,76 @@ function renderStats(job) {
   const cues = job.script ? job.script.cues : [];
   const count = (status) => cues.filter((c) => c.status === status).length;
   const stats = [
-    ["Lines", cues.length],
+    ["Lines", cues.filter((c) => c.status !== "skipped").length],
     ["Verified by the checker", count("verified")],
     ["Approved by a person", count("approved")],
     ["Need review", count("needs_review")],
   ];
   if (job.cost_per_minute !== null && job.cost_per_minute !== undefined) {
-    stats.push(["AMD cost per minute of video", el("span", {}, `$${job.cost_per_minute.toFixed(4)}`, el("br"), el("small", {}, "a human describer: about $7–35"))]);
+    stats.push(["Model cost per minute", el("span", {}, `$${job.cost_per_minute.toFixed(4)}`, el("small", {}, "AMD Token Factory list prices"))]);
   }
   if (job.script?.timings?.describe) {
     const total = Object.values(job.script.timings).reduce((a, b) => a + b, 0);
-    stats.push(["Processing time", `${Math.round(total)} s`]);
+    stats.push(["Processing time", el("span", {}, `${Math.round(total)} s`, el("small", {}, `for ${Math.round(job.script.duration)} s of video`))]);
   }
   $("stats").replaceChildren(...stats.map(([label, value]) => el("div", {}, el("dt", {}, label), el("dd", {}, value))));
 }
 
-function renderCues(cues) {
-  $("cues").replaceChildren(...cues.map((cue, i) => cueCard(cue, i)));
+function renderCues(cues, animate) {
+  const shown = cues.map((cue, i) => [cue, i]);
+  $("cues").replaceChildren(...shown.map(([cue, i]) => cueCard(cue, i, animate)));
   if (!cues.length && current.status === "done") {
-    $("cues").append(el("li", { class: "hint" }, "The dialogue leaves no pause long enough for a description in this video."));
+    $("cues").append(el("li", { class: "card small" }, "The dialogue leaves no pause long enough for a description in this video."));
   }
+  renderTimeline(cues);
 }
 
-function cueCard(cue, index) {
+function renderTimeline(cues) {
+  const { shift, total } = timeMap();
+  const blocks = total
+    ? cues.map((cue, i) => {
+        const start = shift(cue.start);
+        const length = Math.max(cue.end - cue.start, cue.seconds || 0);
+        return el("button", {
+          type: "button",
+          class: `block ${cue.status}`,
+          title: `${clock(cue.start)} ${cue.line || STATUS[cue.status] || ""}`,
+          "aria-label": `Line ${i + 1} at ${clock(cue.start)}`,
+          style: `left:${(start / total) * 100}%;width:${Math.max(0.6, (length / total) * 100)}%`,
+          onclick: (event) => { event.stopPropagation(); seek(cue.start); },
+        });
+      })
+    : [];
+  $("timeline").replaceChildren(...blocks, $("playhead"));
+}
+
+function cueCard(cue, index, animate) {
+  const done = current.status === "done";
   const text = el("textarea", { rows: 2, "aria-label": `Line at ${clock(cue.start)}` });
   text.value = cue.line;
-  const done = current.status === "done";
-  text.disabled = !done;
-  const check = el("button", { type: "button", class: "quiet", disabled: done ? null : "" }, "Check and re-voice");
+  text.disabled = !done || cue.status === "skipped";
+  const check = el("button", { type: "button", class: "btn btn-ghost btn-small", disabled: !done || cue.status === "skipped" }, "Check and re-voice");
   check.addEventListener("click", () => recheck(index, text.value, check));
-  const approve = cue.status === "needs_review" && done
-    ? el("button", { type: "button", class: "quiet", onclick: (e) => approveCue(index, e.target) }, "Approve as is")
+  const approve = cue.status === "needs_review" && done && cue.line
+    ? el("button", { type: "button", class: "btn btn-ghost btn-small", onclick: (e) => approveCue(index, e.currentTarget) }, "Approve as is")
     : null;
-  const rewrites = (cue.history || []).length > 1 || (cue.history || []).some((h) => h.problems.length)
+  const history = cue.history || [];
+  const rounds = history.length > 1 || history.some((h) => h.problems.length)
     ? el("details", {},
-        el("summary", {}, `${cue.history.length} round${cue.history.length > 1 ? "s" : ""} with the checker`),
-        el("ol", {}, cue.history.map((h) =>
-          el("li", {}, h.line, h.problems.map((p) => el("div", { class: "problem" }, `✗ ${p}`))))))
+        el("summary", {}, `${history.length} round${history.length > 1 ? "s" : ""} with the checker`),
+        el("ol", {}, history.map((h) => el("li", {}, h.line || "(no line)", h.problems.map((p) => el("div", { class: "problem" }, `✗ ${p}`))))))
     : null;
-  return el("li", { class: "cue", "data-start": cue.start, "data-end": cue.end },
+  return el("li", { class: `card cue${animate ? " new" : ""}`, "data-start": cue.start, "data-end": cue.end },
     el("div", { class: "cue-head" },
-      el("button", { type: "button", class: "quiet", "aria-label": `Play from ${clock(cue.start)}`, onclick: () => seek(cue.start) }, "▶"),
+      el("button", { type: "button", class: "btn btn-ghost btn-small icon-btn", "aria-label": `Play from ${clock(cue.start)}`, onclick: () => seek(cue.start) }, "▶"),
       el("span", { class: "time" }, `${clock(cue.start)} – ${clock(cue.end)}`),
       el("span", { class: `badge ${cue.status}` }, STATUS[cue.status] || cue.status),
-      cue.seconds ? el("span", {}, `spoken ${cue.seconds.toFixed(1)} s of ${(cue.end - cue.start).toFixed(1)} s${cue.rate > 1 ? ` at ${cue.rate}×` : ""}`) : null,
+      cue.seconds ? el("span", {}, `spoken in ${cue.seconds.toFixed(1)} s of ${(cue.end - cue.start).toFixed(1)} s${cue.rate > 1 ? ` at ${cue.rate}×` : ""}`) : null,
     ),
-    text,
-    el("ul", { class: "claims" }, (cue.claims || []).map((c) => el("li", { class: c.verdict, title: c.verdict.replace("_", " ") }, c.text))),
-    rewrites,
-    el("div", { class: "cue-actions" }, check, approve),
+    cue.status === "skipped" ? null : text,
+    el("ul", { class: "chips" }, (cue.claims || []).map((c) => el("li", { class: `chip ${c.verdict}`, title: c.verdict.replace("_", " ") }, c.text))),
+    rounds,
+    cue.status === "skipped" ? null : el("div", { class: "cue-actions" }, check, approve),
   );
 }
 
@@ -138,8 +185,8 @@ function follow(id) {
     const event = JSON.parse(message.data);
     if (event.type === "cue") {
       cues[event.index] = event.cue;
-      renderCues(cues.filter(Boolean).sort((a, b) => a.start - b.start));
-      $("job-status").textContent = `running · ${cues.filter(Boolean).length} lines written`;
+      renderCues(cues.filter(Boolean).sort((a, b) => a.start - b.start), true);
+      $("job-status").textContent = `running · ${cues.filter(Boolean).length} lines checked`;
     } else if (event.type === "status" && (event.status === "done" || event.status === "failed")) {
       source.close();
       await openJob(id);
@@ -154,13 +201,16 @@ function setVideo() {
   const at = video.currentTime;
   const playing = !video.paused;
   video.src = `/files/${current.id}/${name}?v=${Date.now()}`;
-  video.currentTime = at;
-  if (playing) video.play();
+  video.addEventListener("loadedmetadata", () => {
+    video.currentTime = at;
+    if (playing) video.play();
+    if (!current.script) renderTimeline([]);
+  }, { once: true });
 }
 
 function seek(t) {
   const video = $("video");
-  video.currentTime = Math.max(0, t - 0.5);
+  video.currentTime = Math.max(0, timeMap().shift(t) - 0.5);
   video.play();
 }
 
@@ -184,31 +234,66 @@ async function approveCue(index, button) {
   await openJob(current.id);
 }
 
-$("ad-toggle").addEventListener("change", setVideo);
+function upload(form) {
+  const status = $("upload-status");
+  const bar = $("progress-bar");
+  const button = form.querySelector("button[type=submit]");
+  const file = form.video.files[0];
+  if (!file) { status.textContent = "Choose a video first."; return; }
+  if (file.size > 30 * 1024 * 1024) { status.textContent = `This file is ${(file.size / 1048576).toFixed(0)} MB; the limit is 30 MB.`; return; }
+  const request = new XMLHttpRequest();
+  request.open("POST", "/api/jobs");
+  request.upload.onprogress = (e) => { if (e.lengthComputable) bar.style.width = `${(e.loaded / e.total) * 100}%`; };
+  request.onload = async () => {
+    button.disabled = false;
+    $("progress").hidden = true;
+    let body = {};
+    try { body = JSON.parse(request.responseText); } catch { /* not JSON */ }
+    if (request.status >= 400) { status.textContent = body.detail || `Upload failed (${request.status}).`; return; }
+    status.textContent = "";
+    form.reset();
+    $("drop-title").textContent = "Drop a video here, or choose one";
+    await openJob(body.id);
+  };
+  request.onerror = () => { button.disabled = false; $("progress").hidden = true; status.textContent = "The upload did not reach the server."; };
+  button.disabled = true;
+  $("progress").hidden = false;
+  bar.style.width = "0";
+  status.textContent = `Uploading ${file.name}…`;
+  request.send(new FormData(form));
+}
+
+const drop = $("drop");
+const input = drop.querySelector("input");
+input.addEventListener("change", () => { $("drop-title").textContent = input.files[0]?.name || "Drop a video here, or choose one"; });
+["dragenter", "dragover"].forEach((type) => drop.addEventListener(type, (e) => { e.preventDefault(); drop.classList.add("is-over"); }));
+["dragleave", "drop"].forEach((type) => drop.addEventListener(type, () => drop.classList.remove("is-over")));
+drop.addEventListener("drop", (e) => {
+  e.preventDefault();
+  if (e.dataTransfer.files.length) { input.files = e.dataTransfer.files; input.dispatchEvent(new Event("change")); }
+});
+$("upload").addEventListener("submit", (e) => { e.preventDefault(); upload(e.target); });
+
+$("ad-toggle").addEventListener("change", () => { setVideo(); if (current?.script) renderTimeline(current.script.cues); });
+$("timeline").addEventListener("click", (e) => {
+  const { total } = timeMap();
+  if (!total) return;
+  const box = e.currentTarget.getBoundingClientRect();
+  const video = $("video");
+  video.currentTime = ((e.clientX - box.left) / box.width) * total;
+  video.play();
+});
 $("video").addEventListener("timeupdate", () => {
   const t = $("video").currentTime;
+  const { shift, total } = timeMap();
+  $("playhead").style.left = `${Math.min(100, (t / (total || 1)) * 100)}%`;
   for (const card of document.querySelectorAll(".cue")) {
-    card.classList.toggle("playing", t >= Number(card.dataset.start) && t < Number(card.dataset.end));
-  }
-});
-$("upload").addEventListener("submit", async (event) => {
-  event.preventDefault();
-  const form = event.target;
-  const button = form.querySelector("button");
-  button.disabled = true;
-  $("upload-status").textContent = "Uploading…";
-  try {
-    const { id } = await api("/api/jobs", { method: "POST", body: new FormData(form) });
-    $("upload-status").textContent = "";
-    form.reset();
-    await openJob(id);
-  } catch (error) {
-    $("upload-status").textContent = error.message;
-  } finally {
-    button.disabled = false;
+    const start = shift(Number(card.dataset.start));
+    const end = start + (Number(card.dataset.end) - Number(card.dataset.start));
+    card.classList.toggle("playing", t >= start && t < end);
   }
 });
 
 const linked = location.hash.slice(1);
 if (/^[0-9a-f]{12}$/.test(linked)) openJob(linked).catch(() => loadLibrary());
-else loadLibrary().catch((error) => { $("empty").textContent = `Could not load the library: ${error.message}`; });
+else loadLibrary().catch((error) => { $("upload-status").textContent = `Could not load the library: ${error.message}`; });

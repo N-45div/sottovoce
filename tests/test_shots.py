@@ -46,3 +46,12 @@ def test_real_clip_has_cuts_and_frames():
     jpeg = extract_frame(CLIP, 20.0)
     assert jpeg[:2] == b"\xff\xd8"
     assert len(jpeg) > 10_000
+
+
+@needs_clip
+def test_black_frames_are_found_but_a_small_title_on_black_is_not_black():
+    from sottovoce.shots import is_black
+
+    assert is_black(CLIP, 0.6)  # before the opening title fades in
+    assert not is_black(CLIP, 2.0)  # "Blender Foundation Presents", small white text
+    assert not is_black(CLIP, 13.0)  # rocket engines

@@ -82,3 +82,21 @@ def extract_frame(video: Path | str, at: float, width: int = 768) -> bytes:
         capture_output=True, check=True,
     )
     return out.stdout
+
+
+def is_black(video: Path | str, at: float, *, ceiling: int = 40) -> bool:
+    """Whether the frame at `at` seconds is black: no pixel brighter than `ceiling`.
+
+    A pause that opens on black gave the describer two black frames, and it
+    answered "Please provide the keyframes", so black frames are dropped first.
+    The brightest pixel decides, not the average: a small white title on black
+    averages 16.8 against 15.3 for pure black.
+    """
+    out = subprocess.run(
+        [
+            "ffmpeg", "-v", "error", "-ss", f"{at:.3f}", "-i", str(video),
+            "-frames:v", "1", "-vf", "scale=128:-2,format=gray", "-f", "rawvideo", "-",
+        ],
+        capture_output=True, check=True,
+    )
+    return not out.stdout or max(out.stdout) <= ceiling

@@ -42,7 +42,7 @@ FILES = {
 }
 running = asyncio.Semaphore(int(os.environ.get("SOTTOVOCE_PARALLEL_JOBS", "2")))
 MODELS = {
-    "describer": os.environ.get("SOTTOVOCE_DESCRIBER", "DeepSeek-V4-Flash-Vision-Exp"),
+    "describer": os.environ.get("SOTTOVOCE_DESCRIBER", "Gemma-4-31B-IT"),
     "verifier": os.environ.get("SOTTOVOCE_VERIFIER", "Qwen3.8-27B"),
 }
 

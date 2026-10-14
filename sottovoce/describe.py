@@ -70,7 +70,7 @@ class Settings:
         effort = env("SOTTOVOCE_VERIFIER_EFFORT", "low")
         return cls(
             describer=Endpoint(
-                model=env("SOTTOVOCE_DESCRIBER", "DeepSeek-V4-Flash-Vision-Exp"),
+                model=env("SOTTOVOCE_DESCRIBER", "Gemma-4-31B-IT"),
                 api_base=env("SOTTOVOCE_DESCRIBER_BASE", TOKEN_FACTORY),
                 api_key=env("SOTTOVOCE_DESCRIBER_KEY", key),
             ),

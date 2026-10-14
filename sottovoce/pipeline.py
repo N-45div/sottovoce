@@ -56,6 +56,7 @@ class Script:
     duration: float
     cues: list[Cue]
     timings: dict[str, float] = field(default_factory=dict)
+    models: dict[str, str] = field(default_factory=dict)  # agent -> model that ran it
 
     def to_json(self) -> str:
         return json.dumps(asdict(self), ensure_ascii=False, indent=2)
@@ -149,6 +150,7 @@ async def describe_video(
 ) -> Script:
     """Run every stage and save the script next to the voiced lines."""
     video, out_dir = Path(video), Path(out_dir)
+    settings = settings or Settings.from_env()
     timings: dict[str, float] = {}
 
     t = time.perf_counter()
@@ -168,7 +170,11 @@ async def describe_video(
     await asyncio.to_thread(voice_lines, cues, audience, out_dir / "audio")
     timings["voice"] = time.perf_counter() - t
 
-    script = Script(str(video), audience, total, cues, {k: round(v, 2) for k, v in timings.items()})
+    script = Script(
+        str(video), audience, total, cues,
+        timings={k: round(v, 2) for k, v in timings.items()},
+        models={"describer": settings.describer.model, "verifier": settings.verifier.model},
+    )
     out_dir.mkdir(parents=True, exist_ok=True)
     (out_dir / "script.json").write_text(script.to_json(), encoding="utf-8")
     return script

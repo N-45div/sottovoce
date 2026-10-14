@@ -83,3 +83,18 @@ def test_a2a_agent_card_points_at_the_a2a_route(client):
     assert card["name"] == "sottovoce"
     assert card["supportedInterfaces"][0]["url"].endswith("/a2a")
     assert "AMD" in card["description"]
+
+
+def test_cost_uses_the_models_that_wrote_the_job(client):
+    script_path = server.DATA / "jobs" / JOB / "script.json"
+    script = json.loads(script_path.read_text(encoding="utf-8"))
+    script["models"] = {"describer": "DeepSeek-V4-Flash-Vision-Exp", "verifier": "Qwen3.8-27B"}
+    script_path.write_text(json.dumps(script), encoding="utf-8")
+    deepseek = client.get(f"/api/jobs/{JOB}").json()
+
+    script["models"] = {"describer": "Gemma-4-31B-IT", "verifier": "Qwen3.8-27B"}
+    script_path.write_text(json.dumps(script), encoding="utf-8")
+    gemma = client.get(f"/api/jobs/{JOB}").json()
+
+    assert deepseek["models"]["describer"] == "DeepSeek-V4-Flash-Vision-Exp"
+    assert deepseek["cost_usd"] > gemma["cost_usd"] > 0

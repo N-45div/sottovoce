@@ -154,14 +154,15 @@ def list_jobs() -> list[dict]:
 def get_job(job_id: str) -> dict:
     job = _job(job_id)
     script = job.script()
-    spent = sum(cost(c.tokens, MODELS) for c in script.cues) if script else 0.0
+    models = (script.models if script else None) or MODELS
+    spent = sum(cost(c.tokens, models) for c in script.cues) if script else 0.0
     return {
         "id": job.id, "title": job.title, "audience": job.audience,
         "status": job.status, "error": job.error,
         "script": json.loads(script.to_json()) if script else None,
         "cost_usd": round(spent, 5),
         "cost_per_minute": round(spent / (script.duration / 60), 5) if script else None,
-        "models": MODELS,
+        "models": models,
     }
 
 

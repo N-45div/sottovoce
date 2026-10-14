@@ -19,6 +19,8 @@ _ITALIAN_RULES = (
     "Descrivi solo ciò che è visibile: prima le azioni, poi il luogo, poi l'aspetto. "
     "Non interpretare le emozioni se non sono evidenti sul volto. "
     "Non usare un nome finché il dialogo non lo ha detto. "
+    "Leggi le scritte brevi sullo schermo, come titoli e cartelli, tra virgolette. "
+    "Non descrivere il colore della pelle o l'etnia delle persone. "
     "Non scrivere 'vediamo' o 'si vede', e non usare termini di regia."
 )
 
@@ -36,8 +38,9 @@ AUDIENCES: dict[str, Audience] = {
         style=(
             "Write in plain English, present tense, third person, for a visitor who "
             "does not speak Italian. Describe only what is visible: actions first, then "
-            "the place, then appearance. Translate any Italian text that is visible on "
-            "screen. Never say 'we see' and avoid camera jargon."
+            "the place, then appearance. Read short on-screen text such as titles and "
+            "signs in quotes, translating any Italian. Do not describe people's skin "
+            "colour or ethnicity. Never say 'we see' and avoid camera jargon."
         ),
     ),
     "extended": Audience(

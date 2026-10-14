@@ -41,6 +41,9 @@ FILES = {
     "vtt": "descriptions.vtt",
     "script": "script.json",
 }
+# Media reads come off the Cloud Storage mount, so let browsers keep them a while.
+# Short, because an edit re-exports the files (the app also cache-busts its URLs).
+CACHE = {"Cache-Control": "public, max-age=300"}
 running = asyncio.Semaphore(int(os.environ.get("SOTTOVOCE_PARALLEL_JOBS", "2")))
 MODELS = {
     "describer": os.environ.get("SOTTOVOCE_DESCRIBER", "Gemma-4-31B-IT"),
@@ -198,7 +201,7 @@ def job_file(job_id: str, name: str) -> FileResponse:
     path = job.dir / FILES[name]
     if not path.exists():
         raise HTTPException(404)
-    return FileResponse(path)
+    return FileResponse(path, headers=CACHE)
 
 
 @app.get("/files/{job_id}/audio/{name}")
@@ -210,7 +213,7 @@ def cue_audio(job_id: str, name: str) -> FileResponse:
     path = job.dir / "audio" / name
     if not path.exists():
         raise HTTPException(404)
-    return FileResponse(path, media_type="audio/wav")
+    return FileResponse(path, media_type="audio/wav", headers=CACHE)
 
 
 class Edit(BaseModel):

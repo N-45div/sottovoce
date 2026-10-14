@@ -1,4 +1,4 @@
-"""Who a description is written for, and the house style for each audience."""
+"""Who a description is written for: blind and low-vision children learning from video."""
 
 from __future__ import annotations
 
@@ -14,41 +14,40 @@ class Audience:
     extended: bool = False
 
 
-_ITALIAN_RULES = (
-    "Scrivi in italiano, al presente, in terza persona. "
-    "Descrivi solo ciò che è visibile: prima le azioni, poi il luogo, poi l'aspetto. "
-    "Non interpretare le emozioni se non sono evidenti sul volto. "
-    "Non usare un nome finché il dialogo non lo ha detto. "
-    "Leggi le scritte brevi sullo schermo, come titoli e cartelli, tra virgolette. "
-    "Non descrivere il colore della pelle o l'etnia delle persone. "
-    "Non scrivere 'vediamo' o 'si vede', e non usare termini di regia."
-)
-
+# Lessons rarely pause, so both audiences use extended description: the video
+# holds while a line is spoken, and a child never misses what the teacher shows.
 AUDIENCES: dict[str, Audience] = {
     "it": Audience(
         key="it",
         language="it-IT",
-        name="Audiodescrizione in italiano",
-        style=_ITALIAN_RULES + " Sii essenziale: una frase breve per pausa.",
+        name="Italiano, per bambini",
+        style=(
+            "Descrivi un video educativo per un bambino cieco o ipovedente di 8-13 anni. "
+            "Scrivi in italiano, al presente, con frasi brevi e parole semplici. "
+            "Dì cosa mostra l'insegnante: leggi esattamente le parole, i numeri e le formule "
+            "scritti sullo schermo, e leggi le formule come le direbbe un insegnante ad alta voce. "
+            "Spiega i disegni e i grafici per come sono fatti: cosa è disegnato, le etichette, "
+            "le frecce, cosa sale o scende. Descrivi ogni passaggio di un esperimento. "
+            "Non descrivere dettagli decorativi e non indovinare ciò che non si vede. "
+            "Non descrivere il colore della pelle o l'etnia delle persone. "
+            "Non scrivere 'vediamo' o 'si vede'."
+        ),
+        extended=True,
     ),
     "en": Audience(
         key="en",
         language="en-GB",
-        name="English audio description for visitors",
+        name="English, for children",
         style=(
-            "Write in plain English, present tense, third person, for a visitor who "
-            "does not speak Italian. Describe only what is visible: actions first, then "
-            "the place, then appearance. Read short on-screen text such as titles and "
-            "signs in quotes, translating any Italian. Do not describe people's skin "
-            "colour or ethnicity. Never say 'we see' and avoid camera jargon."
+            "Describe an educational video for a blind or low-vision child aged 8 to 13. "
+            "Write in English, present tense, in short sentences with simple words. "
+            "Say what the teacher shows: read the words, numbers and formulas on screen "
+            "exactly, and read formulas the way a teacher would say them aloud. Explain "
+            "drawings and charts by how they are built: what is drawn, the labels, the arrows, "
+            "what goes up or down. Describe each step of an experiment. Skip decoration and "
+            "never guess what is not visible. Do not describe people's skin colour or "
+            "ethnicity. Never say 'we see'."
         ),
-    ),
-    "extended": Audience(
-        key="extended",
-        language="it-IT",
-        name="Audiodescrizione estesa",
-        style=_ITALIAN_RULES
-        + " Il video si mette in pausa per te: descrivi anche il luogo e i dettagli utili.",
         extended=True,
     ),
 }

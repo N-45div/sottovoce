@@ -118,3 +118,26 @@ def test_every_page_and_its_assets_are_served(client):
     for asset in ("/assets/site.css", "/assets/landing.css", "/assets/landing.js", "/assets/app.css",
                   "/assets/app.js", "/assets/logo.svg", "/assets/hero-poster.jpg", "/assets/evidence.json"):
         assert client.get(asset).status_code == 200, asset
+
+
+def test_media_is_served_in_capped_ranges(client, monkeypatch):
+    monkeypatch.setattr(server, "RANGE_CAP", 1000)
+    path = f"/files/{JOB}/vtt"
+    whole = client.get(path)
+    size = len(whole.content)
+    assert whole.status_code == 200
+    assert "content-length" not in whole.headers  # streamed, so Cloud Run never buffers it
+    assert size > 1000
+
+    opened = client.get(path, headers={"Range": "bytes=0-"})
+    assert opened.status_code == 206
+    assert opened.headers["content-range"] == f"bytes 0-999/{size}"
+    assert opened.content == whole.content[:1000]
+
+    middle = client.get(path, headers={"Range": "bytes=10-19"})
+    assert middle.content == whole.content[10:20]
+
+    tail = client.get(path, headers={"Range": "bytes=-5"})
+    assert tail.content == whole.content[-5:]
+
+    assert client.get(path, headers={"Range": f"bytes={size}-"}).status_code == 416

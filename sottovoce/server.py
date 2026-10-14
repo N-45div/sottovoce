@@ -6,6 +6,7 @@
 from __future__ import annotations
 
 import asyncio
+import mimetypes
 import json
 import os
 import re
@@ -15,8 +16,8 @@ from contextlib import asynccontextmanager
 from dataclasses import asdict, dataclass, field
 from pathlib import Path
 
-from fastapi import FastAPI, File, Form, HTTPException, UploadFile
-from fastapi.responses import FileResponse, StreamingResponse
+from fastapi import FastAPI, File, Form, HTTPException, Request, Response, UploadFile
+from fastapi.responses import StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
@@ -194,18 +195,18 @@ async def job_events(job_id: str) -> StreamingResponse:
 
 
 @app.get("/files/{job_id}/{name}")
-def job_file(job_id: str, name: str) -> FileResponse:
+def job_file(job_id: str, name: str, request: Request) -> Response:
     job = _job(job_id)
     if name not in FILES:
         raise HTTPException(404)
     path = job.dir / FILES[name]
     if not path.exists():
         raise HTTPException(404)
-    return FileResponse(path, headers=CACHE)
+    return media(request, path)
 
 
 @app.get("/files/{job_id}/audio/{name}")
-def cue_audio(job_id: str, name: str) -> FileResponse:
+def cue_audio(job_id: str, name: str, request: Request) -> Response:
     """One voiced line, so a page can play it on its own."""
     job = _job(job_id)
     if not re.fullmatch(r"cue_\d{3}\.wav", name):
@@ -213,7 +214,48 @@ def cue_audio(job_id: str, name: str) -> FileResponse:
     path = job.dir / "audio" / name
     if not path.exists():
         raise HTTPException(404)
-    return FileResponse(path, media_type="audio/wav", headers=CACHE)
+    return media(request, path, "audio/wav")
+
+
+# Cloud Run refuses an HTTP/1 response with a Content-Length over 32 MiB, and a
+# browser opens a video with "Range: bytes=0-", which asks for the whole file:
+# a 47 MB lesson came back as a 500. So ranges are answered in capped pieces
+# (the browser asks for the next one), and a whole-file download is streamed
+# in chunks without a Content-Length.
+RANGE_CAP = 8 * 1024 * 1024
+_RANGE = re.compile(r"bytes=(\d*)-(\d*)")
+
+
+def _read(path: Path, start: int, length: int):
+    with path.open("rb") as f:
+        f.seek(start)
+        while length > 0:
+            chunk = f.read(min(1 << 20, length))
+            if not chunk:
+                return
+            length -= len(chunk)
+            yield chunk
+
+
+def media(request: Request, path: Path, media_type: str | None = None) -> Response:
+    """Serve a file with byte ranges, never more than RANGE_CAP bytes per range."""
+    size = path.stat().st_size
+    media_type = media_type or mimetypes.guess_type(path.name)[0] or "application/octet-stream"
+    headers = {**CACHE, "Accept-Ranges": "bytes"}
+    match = _RANGE.fullmatch(request.headers.get("range", "").strip())
+    if not match or not (match[1] or match[2]):
+        return StreamingResponse(_read(path, 0, size), media_type=media_type, headers=headers)
+    if match[1]:
+        start = int(match[1])
+        end = int(match[2]) if match[2] else size - 1
+    else:  # "bytes=-N": the last N bytes
+        start, end = max(0, size - int(match[2])), size - 1
+    if start >= size or end < start:
+        return Response(status_code=416, headers={"Content-Range": f"bytes */{size}"})
+    end = min(end, size - 1, start + RANGE_CAP - 1)
+    length = end - start + 1
+    headers |= {"Content-Range": f"bytes {start}-{end}/{size}", "Content-Length": str(length)}
+    return StreamingResponse(_read(path, start, length), status_code=206, media_type=media_type, headers=headers)
 
 
 class Edit(BaseModel):

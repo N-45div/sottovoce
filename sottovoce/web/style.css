@@ -98,6 +98,7 @@ button:disabled { opacity: 0.5; cursor: progress; }
 .badge { font-size: 12px; font-weight: 600; padding: 2px 8px; border-radius: 999px; background: var(--info-bg); color: var(--ink); }
 .badge.verified, .badge.done { background: var(--ok-bg); color: var(--ok); }
 .badge.approved { background: var(--info-bg); }
+.badge.skipped, .badge.pending { background: var(--bg); color: var(--muted); border: 1px solid var(--line); }
 .badge.needs_review, .badge.running, .badge.queued { background: var(--warn-bg); color: var(--warn); }
 .badge.failed { background: var(--bad-bg); color: var(--bad); }
 

@@ -49,8 +49,12 @@ def test_export_mixes_a_real_clip(tmp_path):
     subprocess.run(["ffmpeg", "-v", "error", "-t", "20", "-i", str(CLIP), "-c", "copy", str(clip)], check=True)
     (tmp_path / "audio").mkdir()
     (tmp_path / "audio" / "cue_000.wav").write_bytes(tone(2.0))
-    cue = Cue(12.0, 15.0, 7, [12.5], line="I motori del razzo.", audio="cue_000.wav", seconds=2.0)
-    files = export(Script(str(clip), "it", 20.0, [cue]), tmp_path)
+    (tmp_path / "audio" / "cue_001.wav").write_bytes(tone(1.0))
+    cue = Cue(12.0, 15.0, 7, [12.5], line="I motori del razzo.", status="verified",
+              audio="cue_000.wav", seconds=2.0)
+    flagged = Cue(3.0, 5.0, 5, [4.0], line="Please provide the keyframes.", status="needs_review",
+                  audio="cue_001.wav", seconds=1.0)
+    files = export(Script(str(clip), "it", 20.0, [flagged, cue]), tmp_path)
 
     probe = json.loads(subprocess.run(
         ["ffprobe", "-v", "error", "-show_entries", "format=duration:stream=codec_type",
@@ -59,7 +63,14 @@ def test_export_mixes_a_real_clip(tmp_path):
     ).stdout)
     assert {s["codec_type"] for s in probe["streams"]} == {"video", "audio"}
     assert float(probe["format"]["duration"]) == pytest.approx(20.0, abs=0.2)
-    assert "I motori del razzo." in files["vtt"].read_text(encoding="utf-8")
+    vtt = files["vtt"].read_text(encoding="utf-8")
+    assert "I motori del razzo." in vtt
+    assert "keyframes" not in vtt  # a line that needs review is not aired
+    from sottovoce.voice import read_pcm
+
+    narration_samples = read_pcm(files["narration"].read_bytes())
+    assert not narration_samples[3 * SAMPLE_RATE : 4 * SAMPLE_RATE].any()
+    assert narration_samples[12 * SAMPLE_RATE : 13 * SAMPLE_RATE].any()
     assert files["narration"].stat().st_size > 20 * SAMPLE_RATE * 2
 
 

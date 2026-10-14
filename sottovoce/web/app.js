@@ -2,7 +2,7 @@
 
 const $ = (id) => document.getElementById(id);
 const AUDIENCES = { it: "Italian", en: "English", extended: "Italian, extended" };
-const STATUS = { verified: "verified", approved: "approved by a person", needs_review: "needs review", pending: "writing…" };
+const STATUS = { verified: "verified", approved: "approved by a person", needs_review: "needs review · not aired", skipped: "black screen · nothing to describe", pending: "writing…" };
 let current = null;
 let source = null;
 

@@ -116,15 +116,24 @@ def hold_frames(video: Path, held: list[tuple[float, float]], total: float, out:
     )
 
 
+AIRED = ("verified", "approved")
+
+
 def export(script: Script, out_dir: Path | str) -> dict[str, Path]:
-    """Write described.mp4, narration.wav and descriptions.vtt into `out_dir`."""
+    """Write described.mp4, narration.wav and descriptions.vtt into `out_dir`.
+
+    Only lines the checker verified or a person approved are aired. A line that
+    needs review stays in the script for the editor, out of the mix, so nothing
+    unchecked reaches the audience.
+    """
     out_dir = Path(out_dir)
     files = {
         "video": out_dir / "described.mp4",
         "narration": out_dir / "narration.wav",
         "vtt": out_dir / "descriptions.vtt",
     }
-    video, cues, total = Path(script.video), script.cues, script.duration
+    video, total = Path(script.video), script.duration
+    cues = [c for c in script.cues if c.status in AIRED]
     held = holds(cues) if AUDIENCES[script.audience].extended else []
     if held:
         video = out_dir / "held.mp4"

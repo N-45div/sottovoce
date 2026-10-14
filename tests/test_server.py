@@ -114,7 +114,7 @@ def test_every_page_and_its_assets_are_served(client):
         page = client.get(path)
         assert page.status_code == 200, path
         assert "text/html" in page.headers["content-type"]
-        assert "Describe a video" in page.text
+        assert "Describe a lesson" in page.text
     for asset in ("/assets/site.css", "/assets/landing.css", "/assets/landing.js", "/assets/app.css",
-                  "/assets/app.js", "/assets/logo.svg", "/assets/hero-poster.jpg"):
+                  "/assets/app.js", "/assets/logo.svg", "/assets/hero-poster.jpg", "/assets/evidence.json"):
         assert client.get(asset).status_code == 200, asset

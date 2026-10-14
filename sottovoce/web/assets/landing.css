@@ -43,6 +43,15 @@
 [data-ticks] .chip { opacity: 0; }
 .is-in [data-ticks] .chip { animation: pop 380ms var(--ease) both; animation-delay: calc(300ms + var(--i, 0) * 220ms); }
 
+.hear { list-style: none; margin: 0; padding: 0; display: grid; gap: 14px; }
+.hear-item { display: grid; gap: 14px; }
+.hear-row { display: grid; grid-template-columns: 190px minmax(0, 1fr); gap: 16px; align-items: start; }
+.hear-row .who { font: 600 12px/1.6 var(--sans); letter-spacing: 0.04em; text-transform: uppercase; color: var(--muted); }
+.hear-row .who.accent { color: var(--accent); }
+.hear-row .said { color: var(--body); font-style: italic; }
+.hear-row .line { font: 400 21px/1.35 var(--display); margin-bottom: 10px; }
+.hear-row .btn { margin-top: 12px; }
+@media (max-width: 720px) { .hear-row { grid-template-columns: 1fr; gap: 6px; } }
 .audience { display: grid; gap: 12px; align-content: start; }
 .audience-line { font: 400 21px/1.35 var(--display); min-height: 84px; }
 .audience .play { justify-self: start; }

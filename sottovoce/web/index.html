@@ -3,8 +3,8 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Sottovoce · Audio description that checks its own facts</title>
-  <meta name="description" content="Sottovoce writes audio description for every pause in the dialogue, has a second AI model check each line against the picture, and keeps a describer in charge.">
+  <title>Sottovoce · Lessons a blind child can follow</title>
+  <meta name="description" content="When a teacher says 'look at this', a blind child is left out. Sottovoce pauses the lesson and describes what is on screen, checked against the picture, in words a child understands.">
   <link rel="icon" href="/assets/logo.svg" type="image/svg+xml">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -17,46 +17,47 @@
     <div class="container">
       <a class="logo" href="/"><img class="logo-mark" src="/assets/logo.svg" alt="">Sottovoce</a>
       <nav class="nav-links" aria-label="Sections">
+        <a href="#problem">The problem</a>
         <a href="#how">How it works</a>
+        <a href="#hear">Hear it</a>
         <a href="#checker">The checker</a>
-        <a href="#audiences">Audiences</a>
         <a href="#developers">Developers</a>
       </nav>
-      <a class="btn btn-primary btn-small" href="/app/">Describe a video</a>
+      <a class="btn btn-primary btn-small" href="/app/">Describe a lesson</a>
     </div>
   </header>
 
   <main>
     <section class="hero">
       <div class="container">
-        <p class="eyebrow enter" style="--i:0">Audio description for blind and low-vision viewers</p>
-        <h1 class="enter" style="--i:1">Audio description that checks its own facts.</h1>
-        <p class="lede enter" style="--i:2">Sottovoce writes a line for every pause in the dialogue, has a second AI model check each claim against the picture, and keeps a describer in charge of anything it cannot confirm. In Italian, English and extended form.</p>
+        <p class="eyebrow enter" style="--i:0">For blind and low-vision children</p>
+        <h1 class="enter" style="--i:1">Blind children hear the lesson. Sottovoce tells them what is on the board.</h1>
+        <p class="lede enter" style="--i:2">When a teacher says "look at this", a blind child is left out. Sottovoce pauses the video and describes what is on screen, from the number on the board to the experiment on the desk, in words a child understands. A second AI checks every description against the picture, and the teacher approves anything it is unsure of.</p>
         <div class="hero-actions enter" style="--i:3">
-          <a class="btn btn-primary" href="/app/">Describe a video</a>
-          <a class="link" href="#numbers">See what we measured</a>
+          <a class="btn btn-primary" href="/app/">Describe a lesson</a>
+          <a class="link" href="#hear">Hear the difference</a>
         </div>
 
         <div class="stage hero-stage enter" style="--i:4">
           <div class="player" id="hero-player">
-            <video id="hero-video" muted playsinline preload="metadata" poster="/assets/hero-poster.jpg" aria-label="Tears of Steel with audio description"></video>
-            <div class="player-tabs" role="tablist" aria-label="Audience">
-              <button role="tab" class="tab" data-audience="it" aria-selected="true">Italiano</button>
-              <button role="tab" class="tab" data-audience="en" aria-selected="false">English</button>
+            <video id="hero-video" muted playsinline preload="metadata" poster="/assets/hero-poster.jpg" aria-label="A NASA lesson, with and without Sottovoce"></video>
+            <div class="player-tabs" role="tablist" aria-label="Version">
+              <button role="tab" class="tab" data-mode="with" aria-selected="true">With Sottovoce</button>
+              <button role="tab" class="tab" data-mode="without" aria-selected="false">Without description</button>
             </div>
-            <button class="sound btn btn-small" id="hero-sound" type="button" aria-pressed="false">Listen with description</button>
+            <button class="sound btn btn-small" id="hero-sound" type="button" aria-pressed="false">Turn on sound</button>
           </div>
           <div class="speaking glass" id="hero-card" aria-live="polite">
             <div class="speaking-head">
+              <span class="small" id="hero-label">Sottovoce says</span>
               <span class="badge verified" id="hero-status" hidden>verified</span>
-              <span class="small" id="hero-time"></span>
             </div>
-            <p class="speaking-line" id="hero-line">Loading the film…</p>
+            <p class="speaking-line" id="hero-line">Loading the lesson…</p>
             <ul class="chips" id="hero-chips"></ul>
-            <p class="small speaking-foot">Written by Gemma 4 and checked by Qwen3.8, both running on AMD Instinct GPUs.</p>
+            <p class="small speaking-foot" id="hero-foot">Written by Gemma 4 and checked by Qwen3.8, both running on AMD Instinct GPUs. The lesson waits while it is spoken.</p>
           </div>
         </div>
-        <p class="small credit">Film: <em>Tears of Steel</em> (CC BY 3.0, Blender Foundation). The description is real Sottovoce output, unedited.</p>
+        <p class="small credit">Lesson: NASA STEMonstrations, <em>Moon Phases</em> (public domain). The descriptions are real Sottovoce output, unedited.</p>
       </div>
     </section>
 
@@ -67,17 +68,18 @@
       </div>
     </div>
 
-    <section class="section" id="gap">
+    <section class="section" id="problem">
       <div class="container">
         <div class="section-header" data-reveal>
-          <p class="eyebrow">The gap</p>
-          <h2>Nine minutes in ten go undescribed.</h2>
-          <p class="lede">In 2025, RAI's three main channels audio-described 1,848 hours, about 10% of their airtime, against 17,786 hours with subtitles. The reason is cost: a describer watches, writes, times, records and mixes every minute by hand.</p>
+          <p class="eyebrow">The problem</p>
+          <h2>"Look at this" leaves a blind child out.</h2>
+          <p class="lede">Lessons are full of things only the eyes get: the formula on the board, the arrow on a diagram, the colour change in an experiment. Describing a video takes a trained describer, so almost none are described, and support teachers fill the gap as best they can.</p>
         </div>
-        <div class="grid grid-3">
-          <div class="card stat" data-reveal><p class="stat-figure">10%</p><p class="body">of RAI's generalist airtime had audio description in 2025.</p><p class="small">AGCOM annual report 2026</p></div>
-          <div class="card stat" data-reveal><p class="stat-figure">$7–35</p><p class="body">per minute for a human describer. AI services charge about $1, with no published check on accuracy.</p><p class="small">3Play Media and University of Michigan price lists</p></div>
-          <div class="card stat" data-reveal><p class="stat-figure">20% → 60%</p><p class="body">RAI's commitment for its thematic channels, 2025 to 2029, "through the use of artificial intelligence".</p><p class="small">RAI service contract 2023–2028, art. 9</p></div>
+        <div class="grid grid-2">
+          <div class="card stat" data-reveal><p class="stat-figure">&lt;5%</p><p class="body">of educational videos were described, in a national survey of US educators who teach blind students.</p><p class="small">Described and Captioned Media Program, 2009</p></div>
+          <div class="card stat" data-reveal><p class="stat-figure">76,160</p><p class="body">blind and low-vision students registered in US schools.</p><p class="small">American Printing House for the Blind, January 2025</p></div>
+          <div class="card stat" data-reveal><p class="stat-figure">359,000</p><p class="body">pupils with disabilities in Italian schools; about 7% have a visual or hearing disability.</p><p class="small">ISTAT, school year 2023/24</p></div>
+          <div class="card stat" data-reveal><p class="stat-figure">April 2027</p><p class="body">US public schools and universities must make course video accessible, including audio description. "There is no exception for educational course content."</p><p class="small">ADA.gov, Title II web rule</p></div>
         </div>
       </div>
     </section>
@@ -86,16 +88,27 @@
       <div class="container">
         <div class="section-header" data-reveal>
           <p class="eyebrow">How it works</p>
-          <h2>From a film to a described film, with a person in charge.</h2>
+          <h2>A lesson that waits for the child.</h2>
         </div>
         <ol class="steps grid grid-3">
-          <li class="card step" data-reveal><span class="step-n">01</span><h3>Finds the pauses</h3><p class="body">It transcribes the dialogue with word timings, so a description never talks over anyone.</p></li>
-          <li class="card step" data-reveal><span class="step-n">02</span><h3>Looks at the right frames</h3><p class="body">It finds every shot change and picks a keyframe from each shot inside a pause. Black frames are skipped.</p></li>
-          <li class="card step" data-reveal><span class="step-n">03</span><h3>Writes, then checks</h3><p class="body">Gemma 4 writes the line. Qwen3.8, a different model family, checks every claim against the frames and sends wrong ones back.</p></li>
-          <li class="card step" data-reveal><span class="step-n">04</span><h3>Voices it to fit</h3><p class="body">Google's Chirp 3 HD voice reads the line. Every take is measured; a line that cannot fit its pause goes to a person.</p></li>
-          <li class="card step" data-reveal><span class="step-n">05</span><h3>Mixes like a broadcaster</h3><p class="body">The programme dips under each line. You get an MP4, a separate narration track and a WebVTT descriptions file.</p></li>
-          <li class="card step" data-reveal><span class="step-n">06</span><h3>A describer signs off</h3><p class="body">Only verified or approved lines are aired. Edit any line and it is checked, re-voiced and re-mixed in about half a minute.</p></li>
+          <li class="card step" data-reveal><span class="step-n">01</span><h3>Listens to the teacher</h3><p class="body">It transcribes the lesson and finds every moment the teacher points at the screen: "look at this", "you can see", "guardate", "ecco".</p></li>
+          <li class="card step" data-reveal><span class="step-n">02</span><h3>Pauses when it matters</h3><p class="body">Right after the teacher points, in the natural pauses, and whenever the picture keeps changing with nothing described.</p></li>
+          <li class="card step" data-reveal><span class="step-n">03</span><h3>Writes for a child</h3><p class="body">Gemma 4 reads the board, numbers and formulas exactly, explains a diagram by how it is built, and uses short sentences and simple words.</p></li>
+          <li class="card step" data-reveal><span class="step-n">04</span><h3>Checks every claim</h3><p class="body">Qwen3.8, a different model family, checks each claim against the picture. A wrong number would teach a child something false, so it goes back.</p></li>
+          <li class="card step" data-reveal><span class="step-n">05</span><h3>Speaks while the lesson waits</h3><p class="body">A natural voice reads the description and the video holds until it ends. Nothing the teacher says is talked over.</p></li>
+          <li class="card step" data-reveal><span class="step-n">06</span><h3>The teacher approves</h3><p class="body">Only verified or approved lines reach the child. Edit any line and it is checked, re-voiced and re-mixed in about half a minute.</p></li>
         </ol>
+      </div>
+    </section>
+
+    <section class="section" id="hear">
+      <div class="container">
+        <div class="section-header" data-reveal>
+          <p class="eyebrow">Hear it</p>
+          <h2>What a blind child hears, with Sottovoce.</h2>
+          <p class="lede">Real moments from the NASA lesson. The teacher points; the lesson pauses; Sottovoce says what she means. Press play to hear the real voiced line.</p>
+        </div>
+        <ol class="hear" id="hear-list"><li class="card small">Loading the lesson…</li></ol>
       </div>
     </section>
 
@@ -104,42 +117,19 @@
         <div class="section-header" data-reveal>
           <p class="eyebrow">The checker</p>
           <h2>A second model reads every line against the picture.</h2>
-          <p class="lede">The checker splits each line into claims about people, objects, places, colours and on-screen text, and checks each one against the keyframes. We tested it by planting a false detail in every line it had already approved.</p>
-          <p class="body">Here, "a man" became "a child". The checker caught it.</p>
+          <p class="lede">The checker splits each line into claims about objects, numbers, words on the board and what happens, and checks each one against the frames. We tested it by planting a false detail in lines it had already approved.</p>
+          <p class="body" id="checker-note">Here, a number on the board was changed. The checker caught it.</p>
         </div>
         <div class="stage check-stage" data-reveal>
           <div class="glass check-card" id="check-card">
             <p class="small">Planted line</p>
-            <p class="check-line">A <mark>child</mark> in glasses stares at glowing holographic screens. Text reads "SIMULATION READY". A brain appears.</p>
-            <ul class="chips" data-ticks>
-              <li class="chip contradicted" style="--i:0">A child in glasses</li>
-            </ul>
+            <p class="check-line" id="planted-line"></p>
+            <ul class="chips" data-ticks id="planted-chips"></ul>
             <p class="small check-gap">The line Sottovoce actually wrote, verified</p>
-            <p class="check-line">A man in glasses stares at glowing holographic screens. Text reads "SIMULATION READY". A brain appears.</p>
-            <ul class="chips" data-ticks>
-              <li class="chip supported" style="--i:1">A man in glasses</li>
-              <li class="chip supported" style="--i:2">stares at glowing holographic screens</li>
-              <li class="chip supported" style="--i:3">Text reads "SIMULATION READY"</li>
-              <li class="chip supported" style="--i:4">A brain appears</li>
-            </ul>
+            <p class="check-line" id="real-line"></p>
+            <ul class="chips" data-ticks id="real-chips"></ul>
           </div>
         </div>
-      </div>
-    </section>
-
-    <section class="section" id="audiences">
-      <div class="container">
-        <div class="section-header" data-reveal>
-          <p class="eyebrow">Three audiences</p>
-          <h2>One scene, written for who is listening.</h2>
-          <p class="lede">The same moment of film, described three ways. Press play to hear the real voiced line.</p>
-        </div>
-        <div class="grid grid-3" id="audience-cards">
-          <article class="card audience" data-reveal data-audience="it"><p class="eyebrow">Italiano</p><p class="audience-line">…</p><p class="small audience-meta"></p><button class="btn btn-ghost btn-small play" type="button" disabled>Play</button></article>
-          <article class="card audience" data-reveal data-audience="en"><p class="eyebrow">English, for visitors</p><p class="audience-line">…</p><p class="small audience-meta"></p><button class="btn btn-ghost btn-small play" type="button" disabled>Play</button></article>
-          <article class="card audience" data-reveal data-audience="extended"><p class="eyebrow">Esteso: the picture waits</p><p class="audience-line">…</p><p class="small audience-meta"></p><button class="btn btn-ghost btn-small play" type="button" disabled>Play</button></article>
-        </div>
-        <p class="small rule">House style: actions first, then the place. Short on-screen text is read aloud. Skin colour and ethnicity are never described.</p>
       </div>
     </section>
 
@@ -147,14 +137,14 @@
       <div class="container">
         <div class="section-header" data-reveal>
           <p class="eyebrow">Measured, not promised</p>
-          <h2>What it did on a real film.</h2>
-          <p class="lede">The first 150 seconds of <em>Tears of Steel</em>, run through the live models. Small samples, honestly reported.</p>
+          <h2>What it did on two real lessons.</h2>
+          <p class="lede">Two NASA lessons for children, run through the live models. Small samples, honestly reported.</p>
         </div>
-        <div class="grid grid-4">
-          <div class="card stat" data-reveal><p class="stat-figure" data-count="88" data-suffix="%">88%</p><p class="body">of planted errors caught</p><p class="small">28 of 32, Italian and English</p></div>
-          <div class="card stat" data-reveal><p class="stat-figure" data-count="0">0</p><p class="body">correct lines wrongly flagged</p><p class="small">0 of 32</p></div>
-          <div class="card stat" data-reveal><p class="stat-figure">$0.0006</p><p class="body">model cost per minute of video</p><p class="small">Italian run, AMD Token Factory list prices</p></div>
-          <div class="card stat" data-reveal><p class="stat-figure" data-count="48">48</p><p class="body">of 48 lines verified and fitted to their pause</p><p class="small">three audiences, 16 lines each</p></div>
+        <div class="grid grid-4" id="numbers-grid">
+          <div class="card stat" data-reveal><p class="stat-figure" id="n-caught">–</p><p class="body">of planted errors caught</p><p class="small" id="n-caught-note"></p></div>
+          <div class="card stat" data-reveal><p class="stat-figure" id="n-false">–</p><p class="body">correct lines wrongly flagged</p><p class="small" id="n-false-note"></p></div>
+          <div class="card stat" data-reveal><p class="stat-figure" id="n-cost">–</p><p class="body">model cost per minute of lesson</p><p class="small">AMD Token Factory list prices</p></div>
+          <div class="card stat" data-reveal><p class="stat-figure" id="n-lines">–</p><p class="body">lines verified</p><p class="small" id="n-lines-note"></p></div>
         </div>
       </div>
     </section>
@@ -163,13 +153,13 @@
       <div class="container">
         <div class="section-header" data-reveal>
           <p class="eyebrow">Who it is for</p>
-          <h2>Teams who have to describe more than they can afford to.</h2>
+          <h2>The people who get a lesson to a blind child.</h2>
         </div>
         <div class="grid grid-2">
-          <div class="card" data-reveal><h3>Broadcasters and streamers</h3><p class="body">RAI's contract ramps audio description on its thematic channels to 60% by 2029, and AGCOM accessibility plans apply from 2026. Sottovoce drafts and checks; your describers approve.</p></div>
-          <div class="card" data-reveal><h3>Universities and public bodies</h3><p class="body">WCAG 2.1 AA requires audio description for recorded video. US public bodies must comply from April 2027. Course and council video is the backlog nobody can afford to describe by hand.</p></div>
-          <div class="card" data-reveal><h3>Museums and heritage sites</h3><p class="body">Describe exhibition films once and serve Italian, English and extended versions to every visitor.</p></div>
-          <div class="card" data-reveal><h3>Post-production houses</h3><p class="body">Deliver a separate narration track and a WebVTT file alongside the mix, and keep the open models on your own AMD GPUs if the footage cannot leave the building.</p></div>
+          <div class="card" data-reveal><h3>Support teachers</h3><p class="body">Prepare a described lesson in minutes instead of improvising at the desk. Read every line, approve the few the checker could not confirm, and fix any in one click.</p></div>
+          <div class="card" data-reveal><h3>Schools and universities</h3><p class="body">WCAG 2.1 AA asks for audio description on recorded video. In the US the deadline is April 2027; in Italy the Legge Stanca applies to public schools and universities.</p></div>
+          <div class="card" data-reveal><h3>Families</h3><p class="body">Describe the videos a child is set for homework, so they can follow along without someone beside them.</p></div>
+          <div class="card" data-reveal><h3>Publishers and learning platforms</h3><p class="body">Ship a described version of every video in a catalogue, with a WebVTT descriptions track that works in any player.</p></div>
         </div>
       </div>
     </section>
@@ -178,18 +168,18 @@
       <div class="container split">
         <div class="section-header" data-reveal>
           <p class="eyebrow">For developers</p>
-          <h2>Another agent can ask for a line.</h2>
+          <h2>A learning platform can ask for a line.</h2>
           <p class="lede">The describe-and-check loop is a Google ADK agent, also served over the A2A protocol. Send keyframes and get back a line with every claim's verdict. The agent card is at <a class="link" href="/a2a/.well-known/agent-card.json">/a2a/.well-known/agent-card.json</a>.</p>
         </div>
         <pre class="card code" data-reveal><code>POST /a2a   A2A-Version: 1.0
 {"jsonrpc": "2.0", "id": 1, "method": "SendMessage",
  "params": {"message": {"role": "ROLE_USER", "parts": [
    {"raw": "&lt;jpeg, base64&gt;", "mediaType": "image/jpeg"},
-   {"text": "{\"words\": 12, \"audience\": \"en\"}"}]}}}
+   {"text": "{\"words\": 20, \"audience\": \"en\",
+             \"focus\": \"Look at this graph.\"}"}]}}}
 
-→ {"line": "A man aims a rifle while another lies on the floor.",
-   "status": "verified",
-   "claims": [{"text": "A man aims a rifle", "verdict": "supported"}, …]}</code></pre>
+→ {"line": "…", "status": "verified",
+   "claims": [{"text": "…", "verdict": "supported"}, …]}</code></pre>
       </div>
     </section>
 
@@ -200,27 +190,28 @@
           <h2>Before you try it.</h2>
         </div>
         <div class="faq" data-reveal>
-          <details><summary>How accurate is it?</summary><p class="body">On our test film the checker caught 28 of 32 planted errors and flagged none of 32 correct lines. It still misses swaps that leave the picture plausible, such as a beach for the deck of a ship. That is why nothing reaches the audience unless the checker verified it or a person approved it.</p></details>
+          <details><summary>How accurate is it?</summary><p class="body" id="faq-accuracy">Every line is checked against the picture by a second model, and we measure that checker by planting false details. Nothing reaches a child unless the checker verified it or a teacher approved it.</p></details>
+          <details><summary>What if the teacher never stops talking?</summary><p class="body">The lesson waits. Sottovoce holds the picture after the sentence, speaks the description, then lets the teacher carry on. It also steps in when the picture keeps changing and nothing has been described for a while.</p></details>
+          <details><summary>Which languages and ages?</summary><p class="body">Italian and English, written for children of about 8 to 13. You get the described video, a separate narration track and a WebVTT descriptions file.</p></details>
           <details><summary>What runs on AMD?</summary><p class="body">Every vision call. Gemma 4 writes and Qwen3.8 checks, both open models on AMD Instinct GPUs through AMD Token Factory. If one model is down, a backup on the same platform takes over.</p></details>
-          <details><summary>Which languages and formats?</summary><p class="body">Italian, English for visitors, and extended Italian, where the picture holds while a longer line is spoken. You get an MP4 with the description mixed in, a separate narration WAV and a WebVTT descriptions track.</p></details>
-          <details><summary>Can our footage stay private?</summary><p class="body">The hosted version keeps uploads in a private bucket in the EU (Milan) and sends only keyframes and dialogue snippets to AMD Token Factory for the vision models. The models are open, so a broadcaster can run them on its own AMD GPUs and keep everything in the building.</p></details>
-          <details><summary>Does it describe people's appearance?</summary><p class="body">It describes what people do and wear when it matters, and names them only once the dialogue does. It never describes skin colour or ethnicity.</p></details>
+          <details><summary>Can our lessons stay private?</summary><p class="body">The hosted version keeps uploads in a private bucket in the EU (Milan) and sends only keyframes and transcript snippets to AMD Token Factory. The models are open, so a school network or publisher can run them on its own AMD GPUs.</p></details>
+          <details><summary>Does it describe people's appearance?</summary><p class="body">It describes what people do and hold when it matters for the lesson. It never describes skin colour or ethnicity.</p></details>
         </div>
       </div>
     </section>
 
     <section class="section close">
       <div class="container" data-reveal>
-        <h2>Describe your first video.</h2>
-        <p class="lede">Upload up to five minutes of video. Watch every line get written and checked, then listen.</p>
-        <a class="btn btn-primary" href="/app/">Describe a video</a>
+        <h2>Describe your first lesson.</h2>
+        <p class="lede">Upload up to five minutes of video. Watch every description get written and checked, then listen as a child would.</p>
+        <a class="btn btn-primary" href="/app/">Describe a lesson</a>
       </div>
     </section>
   </main>
 
   <footer class="footer">
     <div class="container">
-      <span>Sottovoce · built for the AMD Developer Hackathon, 2026 · MIT licensed</span>
+      <span>Sottovoce · built for the AMD Developer Hackathon, 2026 · MIT licensed · Lessons: NASA (public domain)</span>
       <span><a href="https://github.com/N-45div/sottovoce">GitHub</a> · <a href="/app/">App</a></span>
     </div>
   </footer>

@@ -3,7 +3,7 @@
 Another agent (a broadcaster's media library, an editing tool) sends the
 keyframes of a pause as image parts, plus an optional JSON text part:
 
-    {"words": 12, "audience": "it", "before": "...", "after": "...", "draft": "..."}
+    {"words": 20, "audience": "en", "before": "...", "after": "...", "focus": "Look at this graph.", "draft": "..."}
 
 It gets back one JSON text part: the line, whether every claim in it was
 confirmed in the frames, each claim's verdict, and the rounds it took.
@@ -65,6 +65,7 @@ class DescribeFramesAgent(BaseAgent):
                 before=str(options.get("before", "")),
                 after=str(options.get("after", "")),
                 draft=str(options.get("draft", "")),
+                focus=str(options.get("focus", "")),
                 mime_type=images[0][1],
             )
             reply = asdict(result)

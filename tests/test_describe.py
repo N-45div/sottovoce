@@ -65,3 +65,16 @@ def test_judge_lists_each_unsupported_claim():
     )
     problems = judge("Un elefante su un ponte di notte.", reply, limit=10)[1]
     assert problems == ['"un elefante" is contradicted', '"di notte" is not visible']
+
+
+def test_backups_wrap_the_model_in_an_adk_fallback(monkeypatch):
+    from google.adk.models import FallbackModel
+    from google.adk.models.lite_llm import LiteLlm
+
+    monkeypatch.setenv("AMD_API_KEY", "k")
+    settings = Settings.from_env()
+
+    assert settings.describer.backups == ("DeepSeek-V4-Flash-Vision-Exp",)
+    assert isinstance(settings.describer.llm(), FallbackModel)
+    monkeypatch.setenv("SOTTOVOCE_DESCRIBER_BACKUPS", "")
+    assert isinstance(Settings.from_env().describer.llm(), LiteLlm)

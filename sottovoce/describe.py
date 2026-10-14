@@ -20,6 +20,7 @@ from google.adk.agents import BaseAgent, LlmAgent
 from google.adk.agents.invocation_context import InvocationContext
 from google.adk.agents.readonly_context import ReadonlyContext
 from google.adk.events import Event, EventActions
+from google.adk.models import BaseLlm, FallbackModel
 from google.adk.models.lite_llm import LiteLlm
 from google.adk.runners import InMemoryRunner
 from google.genai import types
@@ -39,16 +40,30 @@ class Endpoint:
     api_base: str
     api_key: str
     extra_body: dict | None = None
+    backups: tuple[str, ...] = ()  # same server, used when the model is down
 
-    def llm(self) -> LiteLlm:
+    def llm(self) -> BaseLlm:
+        """The model, wrapped so a 429/5xx moves on to the next backup.
+
+        On Oct 14 Token Factory's Gemma answered 503 "no available workers" for
+        a while, which failed whole jobs until this fallback was added.
+        """
+        models = [self._one(name) for name in (self.model, *self.backups)]
+        return FallbackModel(models=models) if len(models) > 1 else models[0]
+
+    def _one(self, name: str) -> LiteLlm:
         extra = {"extra_body": self.extra_body} if self.extra_body else {}
         return LiteLlm(
-            model=f"openai/{self.model}",
+            model=f"openai/{name}",
             api_base=self.api_base,
             api_key=self.api_key,
-            num_retries=3,  # Token Factory answers 429 when too many calls run at once
+            num_retries=2,  # Token Factory answers 429 when too many calls run at once
             **extra,
         )
+
+
+def _names(value: str) -> tuple[str, ...]:
+    return tuple(n.strip() for n in value.split(",") if n.strip())
 
 
 @dataclass(frozen=True)
@@ -61,7 +76,8 @@ class Settings:
         """Read the two endpoints from the environment.
 
         Both default to AMD Token Factory. The describer can point at our own
-        vLLM server instead, with SOTTOVOCE_DESCRIBER_BASE and _KEY.
+        vLLM server instead, with SOTTOVOCE_DESCRIBER_BASE and _KEY. Backups
+        are comma-separated model names on the same server.
         """
         env = os.environ.get
         key = env("AMD_API_KEY", "")
@@ -73,14 +89,18 @@ class Settings:
                 model=env("SOTTOVOCE_DESCRIBER", "Gemma-4-31B-IT"),
                 api_base=env("SOTTOVOCE_DESCRIBER_BASE", TOKEN_FACTORY),
                 api_key=env("SOTTOVOCE_DESCRIBER_KEY", key),
+                backups=_names(env("SOTTOVOCE_DESCRIBER_BACKUPS", "DeepSeek-V4-Flash-Vision-Exp")),
             ),
             verifier=Endpoint(
+                # Keep the checker in a different family from every describer, so
+                # the two never share blind spots.
                 model=env("SOTTOVOCE_VERIFIER", "Qwen3.8-27B"),
                 api_base=TOKEN_FACTORY,
                 api_key=key,
                 # Measured on Qwen3.8-27B: default reasoning took 35 s, "low" 15 s with the
                 # same verdicts, and thinking off (4.5 s) called a true claim contradicted.
                 extra_body={"reasoning_effort": effort} if effort else None,
+                backups=_names(env("SOTTOVOCE_VERIFIER_BACKUPS", "Qwen3.8-Flash-Next")),
             ),
         )
 

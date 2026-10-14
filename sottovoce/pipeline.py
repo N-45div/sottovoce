@@ -103,14 +103,21 @@ async def write_lines(
     gate = asyncio.Semaphore(concurrency)
 
     async def one(i: int, cue: Cue) -> None:
-        async with gate:
-            frames = await asyncio.gather(*(asyncio.to_thread(extract_frame, video, t) for t in cue.frames))
-            result = await describe_gap(
-                list(frames), cue.words, audience,
-                before=cue.before, after=cue.after, settings=settings,
-            )
-        cue.line, cue.status = result.line, result.status
-        cue.claims, cue.history, cue.tokens = result.claims, result.history, result.tokens
+        try:
+            async with gate:
+                frames = await asyncio.gather(*(asyncio.to_thread(extract_frame, video, t) for t in cue.frames))
+                result = await describe_gap(
+                    list(frames), cue.words, audience,
+                    before=cue.before, after=cue.after, settings=settings,
+                )
+        except Exception as e:  # noqa: BLE001 - one pause failing must not sink the video
+            # Every model for this pause failed even after the backups; a person
+            # writes the line in the editor instead.
+            cue.status = "needs_review"
+            cue.history = [{"round": 0, "line": "", "problems": [f"no model answered: {type(e).__name__}"]}]
+        else:
+            cue.line, cue.status = result.line, result.status
+            cue.claims, cue.history, cue.tokens = result.claims, result.history, result.tokens
         if on_cue:
             on_cue(i, cue)
 

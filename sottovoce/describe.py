@@ -156,6 +156,11 @@ def _describer_instruction(ctx: ReadonlyContext) -> str:
         parts.append(f"Dialogue just before the pause: {s['before']}")
     if s.get("after"):
         parts.append(f"Dialogue just after the pause: {s['after']}")
+    if s.get("focus"):
+        parts.append(
+            f'The teacher just said: "{s["focus"]}". They are pointing at something on '
+            "screen: say exactly what it is, so a child who cannot see knows what they mean."
+        )
     if s.get("feedback"):
         parts.append(s["feedback"])
     return "\n\n".join(parts)
@@ -299,12 +304,15 @@ async def describe_gap(
     after: str = "",
     mime_type: str = "image/jpeg",
     draft: str = "",
+    focus: str = "",
     settings: Settings | None = None,
     max_rounds: int = 3,
 ) -> GapResult:
     """Run the describe-verify loop for one pause and return the outcome.
 
     With `draft`, the first round checks that line instead of writing one.
+    With `focus`, the teacher has just pointed at something ("look at this"),
+    and the line says what it is.
     """
     if isinstance(audience, str):
         audience = AUDIENCES[audience]
@@ -320,6 +328,7 @@ async def describe_gap(
             "before": before,
             "after": after,
             "draft": draft,
+            "focus": focus,
         },
     )
     message = types.Content(

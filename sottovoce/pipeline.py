@@ -21,6 +21,7 @@ from .asr import Word, dialogue_around, transcribe_cached
 from .audiences import AUDIENCES
 from .describe import Settings, describe_gap
 from .gaps import find_gaps, speech_spans, split_long
+from .pointing import pointing_moments
 from .shots import detect_cuts, duration, extract_frame, frame_times, is_black, shots_from_cuts
 from .voice import Speech, speak_within
 
@@ -47,6 +48,7 @@ class Cue:
     rate: float = 1.0
     fits: bool = True
     audio: str = ""
+    focus: str = ""  # what the teacher said while pointing, for a pointing cue
 
 
 @dataclass
@@ -69,6 +71,10 @@ class Script:
 
 
 EXTENDED_WORDS = 22  # the picture waits for the line, so it can say more
+# A pointing cue sits just after the teacher's sentence: a short delay so no word
+# is clipped, and a tiny window, because the picture holds there anyway.
+POINT_DELAY = 0.02
+POINT_WINDOW = 0.04
 
 
 def plan(video: Path | str, words: list[Word], total: float, audience: str = "it") -> list[Cue]:
@@ -86,7 +92,28 @@ def plan(video: Path | str, words: list[Word], total: float, audience: str = "it
         times = frame_times(shots, gap.start, gap.end)
         budget = max(gap.words, EXTENDED_WORDS) if extended else gap.words
         cues.append(Cue(gap.start, gap.end, budget, times, before, after))
-    return cues
+    if extended:
+        cues += pointing_cues(words, shots, cues)
+    return sorted(cues, key=lambda c: c.start)
+
+
+def pointing_cues(words: list[Word], shots, gap_cues: list[Cue]) -> list[Cue]:
+    """A cue right after every sentence where the teacher points at the screen.
+
+    The cue is a sliver of time just after the sentence ends; the picture holds
+    there while the line is spoken. Its frames come from the sentence itself,
+    which is when the thing being pointed at is on screen. A pointing sentence
+    already followed by a pause is described in that pause instead.
+    """
+    out = []
+    for moment in pointing_moments(words):
+        if any(-0.5 <= c.start - moment.end <= 2.0 for c in gap_cues):
+            continue
+        at = moment.end + POINT_DELAY
+        times = frame_times(shots, moment.start, moment.end + 1.0, lead=0.0)
+        before, after = dialogue_around(words, moment.start, at)
+        out.append(Cue(at, at + POINT_WINDOW, EXTENDED_WORDS, times, before, after, focus=moment.sentence))
+    return out
 
 
 async def write_lines(
@@ -115,7 +142,7 @@ async def write_lines(
                 frames = await asyncio.gather(*(asyncio.to_thread(extract_frame, video, t) for t in cue.frames))
                 result = await describe_gap(
                     list(frames), cue.words, audience,
-                    before=cue.before, after=cue.after, settings=settings,
+                    before=cue.before, after=cue.after, focus=cue.focus, settings=settings,
                 )
         except Exception as e:  # noqa: BLE001 - one pause failing must not sink the video
             # Every model for this pause failed even after the backups; a person

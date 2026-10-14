@@ -21,13 +21,18 @@ def test_plan_on_the_real_film_never_talks_over_dialogue():
     cues = plan(CLIP, words, total)
     speech = speech_spans([(w.start, w.end) for w in words])
 
-    assert len(cues) >= 8
+    pauses = [c for c in cues if not c.focus]
+    assert len(pauses) >= 8
     for cue in cues:
         assert 0.0 <= cue.start < cue.end <= total
         assert cue.words >= 3
-        assert all(cue.end <= s.start or cue.start >= s.end for s in speech)
         assert cue.frames
+    for cue in pauses:  # a pause cue never talks over dialogue
+        assert all(cue.end <= s.start or cue.start >= s.end for s in speech)
         assert all(cue.start - 1.0 <= t <= cue.end for t in cue.frames)
+    for cue in cues:  # a pointing cue starts once the teacher's sentence has ended
+        if cue.focus:
+            assert any(abs(w.end - cue.start) < 0.05 for w in words)
     assert all(a.end <= b.start for a, b in zip(cues, cues[1:]))
 
 
@@ -67,3 +72,20 @@ def test_a_line_that_fits_keeps_its_status():
     record_speech(cue, Speech(b"", 1.5, 1.0, True))
     assert cue.status == "verified"
     assert cue.history == []
+
+
+def test_a_pointing_sentence_gets_a_cue_unless_a_pause_follows_it():
+    from sottovoce.asr import Word
+    from sottovoce.gaps import Span
+    from sottovoce.pipeline import POINT_DELAY, pointing_cues
+
+    words = [Word(10.0, 10.4, "Look"), Word(10.5, 10.6, "at"), Word(10.7, 11.2, "this."), Word(11.3, 12.0, "Next.")]
+    shots = [Span(0.0, 30.0)]
+
+    [cue] = pointing_cues(words, shots, [])
+    assert cue.start == pytest.approx(11.2 + POINT_DELAY)
+    assert cue.focus == "Look at this."
+    assert all(10.0 <= t <= 12.2 for t in cue.frames)
+
+    pause_right_after = Cue(11.5, 14.0, 7, [12.0])
+    assert pointing_cues(words, shots, [pause_right_after]) == []

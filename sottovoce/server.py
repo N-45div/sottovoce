@@ -227,7 +227,8 @@ async def edit_cue(job_id: str, index: int, edit: Edit) -> dict:
     source = job.dir / FILES["source"]
     frames = [await asyncio.to_thread(extract_frame, source, t) for t in cue.frames]
     result = await describe_gap(
-        frames, cue.words, job.audience, before=cue.before, after=cue.after, draft=edit.line.strip()
+        frames, cue.words, job.audience, before=cue.before, after=cue.after,
+        focus=cue.focus, draft=edit.line.strip(),
     )
     cue.line, cue.status, cue.claims, cue.history = result.line, result.status, result.claims, result.history
     limit = 60.0 if AUDIENCES[job.audience].extended else cue.end - cue.start

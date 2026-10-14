@@ -1,0 +1,64 @@
+/* Landing page: layout only. Type, colour, cards and buttons come from site.css. */
+
+.hero { padding: 72px 0 40px; }
+.hero h1 { max-width: 760px; margin: 14px 0 18px; }
+.hero-actions { display: flex; align-items: center; gap: 20px; margin: 28px 0 44px; flex-wrap: wrap; }
+.credit { margin-top: 12px; }
+
+.hero-stage { padding: 28px; display: grid; grid-template-columns: minmax(0, 1.55fr) minmax(0, 1fr); gap: 20px; align-items: end; }
+.player { position: relative; border-radius: 12px; overflow: hidden; background: #000; box-shadow: var(--shadow); }
+.player video { width: 100%; aspect-ratio: 1280 / 534; object-fit: cover; }
+.player-tabs { position: absolute; top: 12px; left: 12px; display: flex; gap: 4px; padding: 4px; border-radius: 999px; background: rgba(0, 0, 0, 0.45); backdrop-filter: blur(8px); }
+.tab { font: 500 12.5px/1 var(--sans); color: rgba(255, 255, 255, 0.8); background: none; border: 0; padding: 7px 12px; border-radius: 999px; cursor: pointer; }
+.tab[aria-selected="true"] { background: #fff; color: var(--ink); }
+.sound { position: absolute; right: 12px; bottom: 12px; background: rgba(255, 255, 255, 0.92); color: var(--ink); }
+.sound[aria-pressed="true"] { background: var(--ink); color: #fff; }
+.speaking { padding: 18px; display: grid; gap: 12px; min-height: 230px; align-content: start; }
+.speaking-head { display: flex; justify-content: space-between; align-items: center; gap: 8px; }
+.speaking-line { font: 400 22px/1.3 var(--display); letter-spacing: -0.01em; min-height: 58px; }
+.speaking-foot { margin-top: auto; }
+@media (max-width: 860px) { .hero-stage { grid-template-columns: 1fr; padding: 16px; } .speaking { min-height: 0; } }
+
+.marquee { overflow: hidden; padding: 18px 0; mask-image: linear-gradient(90deg, transparent, #000 12%, #000 88%, transparent); }
+.marquee-track { display: flex; gap: 48px; width: max-content; animation: marquee 44s linear infinite; }
+.marquee-track span { font: 500 14px/1 var(--sans); color: var(--muted); white-space: nowrap; }
+@keyframes marquee { to { transform: translateX(-50%); } }
+
+.stat { display: grid; gap: 6px; align-content: start; }
+.stat-figure { font: 400 44px/1 var(--display); letter-spacing: -0.02em; color: var(--ink); margin-bottom: 6px; }
+
+.steps { list-style: none; margin: 0; padding: 0; }
+.step { display: grid; gap: 10px; align-content: start; }
+.step-n { font: 500 13px/1 var(--mono); color: var(--accent); }
+
+.split { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.1fr); gap: 48px; align-items: center; }
+.split .section-header { margin-bottom: 0; }
+@media (max-width: 860px) { .split { grid-template-columns: 1fr; gap: 28px; } }
+
+.check-stage { padding: 28px; }
+.check-card { padding: 22px; display: grid; gap: 10px; }
+.check-line { font: 400 20px/1.35 var(--display); }
+.check-line mark { background: var(--bad-bg); color: var(--bad); border-radius: 4px; padding: 0 3px; }
+.check-gap { margin-top: 10px; padding-top: 14px; border-top: 1px solid var(--line); }
+[data-ticks] .chip { opacity: 0; }
+.is-in [data-ticks] .chip { animation: pop 380ms var(--ease) both; animation-delay: calc(300ms + var(--i, 0) * 220ms); }
+
+.audience { display: grid; gap: 12px; align-content: start; }
+.audience-line { font: 400 21px/1.35 var(--display); min-height: 84px; }
+.audience .play { justify-self: start; }
+.audience .play.is-playing { background: var(--ink); color: #fff; }
+.rule { margin-top: 20px; }
+
+.code { margin: 0; overflow-x: auto; font: 13px/1.6 var(--mono); color: #2b2b2b; white-space: pre; }
+
+.faq-wrap { max-width: 760px; }
+.faq details { border-top: 1px solid var(--line); padding: 18px 0; }
+.faq details:last-child { border-bottom: 1px solid var(--line); }
+.faq summary { cursor: pointer; font: 500 17px/1.4 var(--sans); list-style: none; display: flex; justify-content: space-between; gap: 16px; }
+.faq summary::after { content: "+"; color: var(--muted); font-weight: 400; }
+.faq details[open] summary::after { content: "–"; }
+.faq details p { margin-top: 10px; }
+
+.close { text-align: center; }
+.close .container { display: grid; justify-items: center; gap: 18px; }
+@media (prefers-reduced-motion: reduce) { [data-ticks] .chip { opacity: 1; animation: none !important; } }

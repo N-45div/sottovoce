@@ -32,3 +32,14 @@ def test_summary_counts_catches_and_false_alarms():
         "lines": 2, "planted_errors": 2, "caught": 1, "catch_rate": 0.5,
         "false_alarms": 1, "false_alarm_rate": 0.5,
     }
+
+
+def test_a_number_on_the_board_can_be_changed():
+    seen = {plant_error('The board says "238,855 miles".', "en", random.Random(seed))[1] for seed in range(10)}
+    assert seen == {"238,855 -> 338,855"}
+
+
+def test_lesson_words_are_swapped():
+    line, change = plant_error("The moon circles the earth.", "en", random.Random(2))
+    assert change in {"moon -> sun", "earth -> mars"}
+    assert line != "The moon circles the earth."

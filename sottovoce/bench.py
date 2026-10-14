@@ -29,14 +29,24 @@ SWAPS = {
         "ponte": "spiaggia", "razzo": "treno", "città": "foresta", "balcone": "barca",
         "dirigibile": "elefante", "rosso": "verde", "giallo": "viola", "blu": "arancione",
         "notte": "mezzogiorno", "luci": "candele", "schermo": "lago", "torri": "palme",
+        # lessons
+        "luna": "sole", "sole": "luna", "terra": "marte", "cubo": "sfera", "cilindro": "cono",
+        "quadrato": "triangolo", "sinistra": "destra", "destra": "sinistra", "sale": "scende",
+        "astronauta": "pilota", "stazione": "nave",
     },
     "en": {
         "man": "child", "woman": "old woman", "rifle": "umbrella", "brain": "heart",
         "bridge": "beach", "rocket": "train", "city": "forest", "balcony": "boat",
         "airship": "elephant", "red": "green", "yellow": "purple", "blue": "orange",
         "night": "noon", "lights": "candles", "screen": "lake", "towers": "palm trees",
+        # lessons
+        "moon": "sun", "sun": "moon", "earth": "mars", "cube": "sphere", "cylinder": "cone",
+        "square": "triangle", "left": "right", "right": "left", "up": "down", "down": "up",
+        "astronaut": "pilot", "station": "ship",
     },
 }
+_NUMBER = re.compile(r"\d[\d,.]*\d|\d")
+_NUMBER_KEY = "<number>"
 INSERTS = {
     "it": " Un cane bianco dorme accanto.",
     "en": " A white dog sleeps nearby.",
@@ -47,8 +57,15 @@ def plant_error(line: str, language: str, rng: random.Random) -> tuple[str, str]
     """Return the line with one false detail, and a note of what was changed."""
     swaps = SWAPS[language]
     found = [w for w in swaps if re.search(rf"\b{re.escape(w)}\b", line, re.IGNORECASE)]
+    number = _NUMBER.search(line)
+    if number:
+        found.append(_NUMBER_KEY)  # a wrong number on the board teaches a child something false
     if found:
         word = rng.choice(found)
+        if word == _NUMBER_KEY:
+            old = number.group(0)
+            new = str((int(old[0]) + 1) % 10 or 1) + old[1:]
+            return line[: number.start()] + new + line[number.end():], f"{old} -> {new}"
         changed = re.sub(rf"\b{re.escape(word)}\b", swaps[word], line, count=1, flags=re.IGNORECASE)
         return changed, f"{word} -> {swaps[word]}"
     return line.rstrip() + INSERTS[language], "inserted an object"

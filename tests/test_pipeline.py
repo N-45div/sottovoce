@@ -89,3 +89,28 @@ def test_a_pointing_sentence_gets_a_cue_unless_a_pause_follows_it():
 
     pause_right_after = Cue(11.5, 14.0, 7, [12.0])
     assert pointing_cues(words, shots, [pause_right_after]) == []
+
+
+def test_a_long_lesson_without_pauses_gets_catch_up_descriptions():
+    from sottovoce.asr import Word
+    from sottovoce.gaps import Span
+    from sottovoce.pipeline import catch_up_cues
+
+    # One sentence every 5 s for a minute, a hard cut at 22 s, no pauses, no pointing.
+    words = [Word(5.0 * i, 5.0 * i + 4.5, f"Sentence {i}.") for i in range(12)]
+    shots = [Span(0.0, 22.0), Span(22.0, 60.0)]
+    cues = catch_up_cues(words, shots, [], every=25.0)
+
+    assert [round(c.start, 2) for c in cues] == [29.52]  # first sentence end after 25 s, past the cut
+    assert all(c.focus == "" for c in cues)
+
+
+def test_no_catch_up_while_lines_are_frequent():
+    from sottovoce.asr import Word
+    from sottovoce.gaps import Span
+    from sottovoce.pipeline import catch_up_cues
+
+    words = [Word(5.0 * i, 5.0 * i + 4.5, f"Sentence {i}.") for i in range(12)]
+    shots = [Span(0.0, 22.0), Span(22.0, 60.0)]
+    busy = [Cue(10.0, 12.0, 5, [11.0]), Cue(30.0, 32.0, 5, [31.0]), Cue(50.0, 52.0, 5, [51.0])]
+    assert catch_up_cues(words, shots, busy, every=25.0) == []

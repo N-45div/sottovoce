@@ -21,7 +21,7 @@ from .asr import Word, dialogue_around, transcribe_cached
 from .audiences import AUDIENCES
 from .describe import Settings, describe_gap
 from .gaps import find_gaps, speech_spans, split_long
-from .pointing import pointing_moments
+from .pointing import pointing_moments, sentences
 from .shots import detect_cuts, duration, extract_frame, frame_times, is_black, shots_from_cuts
 from .voice import Speech, speak_within
 
@@ -75,6 +75,7 @@ EXTENDED_WORDS = 22  # the picture waits for the line, so it can say more
 # is clipped, and a tiny window, because the picture holds there anyway.
 POINT_DELAY = 0.02
 POINT_WINDOW = 0.04
+CATCH_UP = 25.0  # longest a lesson goes without a description while the picture changes
 
 
 def plan(video: Path | str, words: list[Word], total: float, audience: str = "it") -> list[Cue]:
@@ -94,7 +95,40 @@ def plan(video: Path | str, words: list[Word], total: float, audience: str = "it
         cues.append(Cue(gap.start, gap.end, budget, times, before, after))
     if extended:
         cues += pointing_cues(words, shots, cues)
+        cues += catch_up_cues(words, shots, cues)
     return sorted(cues, key=lambda c: c.start)
+
+
+def catch_up_cues(words: list[Word], shots, cues: list[Cue], *, every: float = CATCH_UP) -> list[Cue]:
+    """Describe new pictures in a lesson that never pauses and never points.
+
+    If nothing has been described for `every` seconds and the shot has changed
+    (or for 1.6 times as long in any case), the lesson holds at the end of the
+    current sentence and the line says what is new on screen.
+    """
+    taken = sorted(c.start for c in cues)
+    cuts = [s.start for s in shots[1:]]
+    out: list[Cue] = []
+    last = 0.0
+    for sentence in sentences(words):
+        end = sentence[-1].end
+        before = [t for t in taken if t <= end]
+        if before:
+            last = max(last, before[-1])
+        changed = any(last < c <= end for c in cuts)
+        # Slides and animations change without a hard cut, so a long enough
+        # stretch earns a description anyway.
+        if end - last < every or (not changed and end - last < every * 1.6):
+            continue
+        if any(abs(t - end) < every / 2 for t in taken):
+            continue
+        at = end + POINT_DELAY
+        times = frame_times(shots, max(last, end - every), end + 0.5, lead=0.0)
+        said_before, said_after = dialogue_around(words, end - 8.0, at)
+        out.append(Cue(at, at + POINT_WINDOW, EXTENDED_WORDS, times, said_before, said_after))
+        taken.append(at)
+        last = at
+    return out
 
 
 def pointing_cues(words: list[Word], shots, gap_cues: list[Cue]) -> list[Cue]:

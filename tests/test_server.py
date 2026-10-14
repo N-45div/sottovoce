@@ -110,7 +110,7 @@ def test_a_single_voiced_line_can_be_fetched_and_nothing_else(client):
 
 
 def test_every_page_and_its_assets_are_served(client):
-    for path in ("/", "/app/", "/pricing/"):
+    for path in ("/", "/app/"):
         page = client.get(path)
         assert page.status_code == 200, path
         assert "text/html" in page.headers["content-type"]

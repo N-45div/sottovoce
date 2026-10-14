@@ -1,67 +1,59 @@
 # Sottovoce
 
-**Audio description that fits the pauses and checks its own facts.** Two vision models on AMD Instinct GPUs write and cross-check every line. A person approves anything the checker cannot confirm. The models cost under a tenth of a cent per minute of video.
+**Blind children hear the lesson. Sottovoce tells them what is on the board.**
 
 **Live app: https://sottovoce-408280170923.europe-west8.run.app**
 
-Audio description is the voice that tells blind and low-vision viewers what is on screen, in the pauses between the dialogue. In 2025, RAI's three main channels audio-described 1,848 hours, about 10% of their airtime, against 17,786 hours with subtitles (AGCOM, 2026 annual report). RAI's 2023–2028 service contract commits to extending subtitles and audio description to its thematic channels "through the use of artificial intelligence", from 20% of programming in 2025 to 60% in 2029.
+When a teacher in a video says "look at this", a blind child is left out. The formula on the board, the arrow on a diagram and the colour change in an experiment all reach only the eyes. Audio description fixes that: a voice says what is on screen. But it takes a trained describer, so almost no educational video has it. In a national US survey, educators of blind students said less than 5% of the educational videos they use were described (DCMP).
 
-The obstacle is cost. A human describer costs about $7–35 per minute (US list prices). AI audio-description services charge about $1 per minute, but none that we found publishes how it checks that its descriptions are true.
+Sottovoce describes lessons for blind and low-vision children:
 
-Sottovoce does the work and keeps a person in charge of it:
+1. **Listens to the teacher.** It transcribes the lesson with word timings (faster-whisper) and finds every moment the teacher points at the screen: "look at this", "you can see", "guardate", "ecco".
+2. **Pauses when it matters.**
+   - Right after the teacher points.
+   - In natural pauses.
+   - Whenever the picture keeps changing with nothing described for 25 seconds.
 
-1. **Finds the pauses.** It transcribes the dialogue with word timings (faster-whisper), so a description never talks over anyone. Long silent scenes are split, so they are described as they unfold.
-2. **Looks at the right frames.** It finds the shot changes and sends a keyframe from every shot inside each pause.
-3. **Writes a line, then checks it with a second model.**
-   - Gemma 4 writes the line in the house style, inside a word budget.
-   - Qwen3.8 is from a different family, so the two don't share blind spots. It splits the line into one claim per person, object, place, colour and quoted text, and checks each against the frames.
-   - A contradicted or unconfirmed claim goes back for a rewrite. A line that still fails after three rounds goes to a person.
-4. **Voices it to fit.** Google Cloud Text-to-Speech reads the line. Every take is measured and sped up slightly if needed. A line that still runs over its pause goes to a person, so it never talks over the dialogue.
-5. **Mixes it like a broadcaster.** It lowers the programme under each line and exports an MP4 with the description mixed in, the narration as a separate track, and a WebVTT `kind="descriptions"` track.
+   The video holds while the line is spoken (extended audio description, WCAG 1.2.7), on the frame being described, so the teacher is never talked over.
+3. **Writes for a child.** Gemma 4 reads the board, numbers and formulas exactly, explains a diagram by how it is built, and uses short sentences and simple words.
+4. **Checks every claim.** Qwen3.8, a different model family, splits each line into claims and checks each one against the frames. A wrong number would teach a child something false, so a contradicted claim goes back for a rewrite. A line that still fails goes to the teacher.
+5. **Speaks it.** Google Cloud Text-to-Speech (Chirp 3 HD), in Italian or English.
+6. **The teacher approves.** Only lines the checker verified or a teacher approved reach the child. An edited line is checked, re-voiced and re-mixed.
 
-## Three audiences
+You get the described lesson as MP4, the narration as a separate track, and a WebVTT `kind="descriptions"` track.
 
-| Audience | What it does |
+## Measured on two real lessons
+
+Two NASA STEMonstrations lessons for children (*Moon Phases*, 4:21, and *Area and Volume*, 4:09; public domain), run through the live models:
+
+| | |
 |---|---|
-| Italian (`it`) | Standard audio description for blind and low-vision viewers. |
-| English (`en`) | For visitors who don't speak Italian. On-screen Italian text is read in translation. |
-| Extended (`extended`) | Extended audio description (WCAG success criterion 1.2.7): when a scene needs more words than the pause allows, the picture holds until the line ends. |
+| Lines written | 32 |
+| Verified by the checker | 32 |
+| Lines placed right after the teacher pointed | 5 |
+| Planted errors caught (a changed number, cube to sphere, Earth to Mars, left to right, moon to sun…) | **24 of 32 (75%)** |
+| Correct lines wrongly flagged | **0 of 32** |
+| Model cost on AMD Token Factory | **$0.00053 per minute of lesson** |
 
-The house style reads short on-screen text aloud, such as titles, signs and headlines. It does not describe people's skin colour or ethnicity.
+Of the 8 planted errors the checker missed, 5 swapped "space station" for "space ship", which a frame can barely tell apart. 32 lines is a small sample, so read these as an early measurement, not a guarantee.
 
-## Measured on a real film
+Examples of real lines from *Moon Phases*:
+- After *"let's take a look at where the space station is…"*: "A diagram shows the Earth and the International Space Station orbiting it."
+- On screen: "A drawing of Earth and the moon. Text reads: 'THE MOON IS 238,855 MILES AWAY'."
+- The demonstration: "A white sphere is held up. The left side is lit."
 
-All numbers come from the first 150 seconds of *Tears of Steel*, run through the real models.
-
-| | Italian | English | Extended |
-|---|---|---|---|
-| Lines written | 16 | 16 | 16 |
-| Verified by the checker | 16 | 16 | 16 |
-| Lines that fit their pause | 16 | 16 | 16 (the picture held 10 times, +27.6 s) |
-| Time for 150 s of video | 299 s | 410 s | 522 s |
-| Model cost on AMD Token Factory, per minute of video | $0.00064 | $0.00080 | $0.00094 |
-
-**How well the checker catches errors.** For every line above, the benchmark planted one false detail, such as "train engines" for rocket engines, an umbrella for a rifle, a forest for a city, or a child for a man. It then asked the checker about both the planted line and the original.
-
-| Writer, checker | Planted errors caught | Correct lines wrongly flagged |
-|---|---|---|
-| DeepSeek-V4-Flash-Vision, first checker (loose claims) | 17 of 28 (61%) | 0 of 28 |
-| DeepSeek-V4-Flash-Vision, current checker (one claim per noun) | 22 of 28 (79%) | 1 of 28 |
-| **Gemma 4, current checker** | **28 of 32 (88%)** | **0 of 32** |
-
-It still misses some swaps that leave the picture plausible, such as a beach for the deck of a ship, or a boat for a balcony. 32 lines is a small sample, so read these as an early measurement, not a guarantee. That is why every line stays editable and a person approves anything the checker cannot confirm.
+The engine was first measured on 150 s of *Tears of Steel*. On 32 film lines, Gemma 4 writing and Qwen3.8 checking caught 28 of 32 planted errors, with 0 false alarms.
 
 ## Where it runs
 
 - **AMD:** every vision call goes to AMD Token Factory, which runs open models on AMD Instinct GPUs.
-  - The writer is Gemma-4-31B-IT, with DeepSeek-V4-Flash-Vision as its backup.
-  - The checker is Qwen3.8-27B with low reasoning effort, with Qwen3.8-Flash as its backup.
-  - On Qwen3.8-27B, default reasoning took 35 s per check with the same verdicts. Thinking switched off took 4.5 s, but it rejected a true claim.
+  - The writer is Gemma-4-31B-IT, with DeepSeek-V4-Flash-Vision as backup.
+  - The checker is Qwen3.8-27B at low reasoning effort, with Qwen3.8-Flash as backup.
 - **Google:**
   - Gemma 4 writes every line.
   - The describe-check-rewrite loop is a [Google ADK](https://google.github.io/adk-docs/) agent: two `LlmAgent`s under a custom `BaseAgent`, each on an ADK `FallbackModel`. Whether a line passes is decided by code, not by a model.
-  - The same agent is served over A2A at `/a2a`, so other agents can send keyframes and get a checked line back.
-  - The voices are Google Cloud Text-to-Speech, Chirp 3 HD.
+  - The same agent is served over A2A at `/a2a`, so a learning platform can send keyframes, with what the teacher said, and get a checked line back.
+  - Voices come from Google Cloud Text-to-Speech.
   - The app runs on Cloud Run in Milan, with its library in Cloud Storage.
 
 ## Run it
@@ -70,28 +62,27 @@ It still misses some swaps that leave the picture plausible, such as a beach for
 pip install -e .
 export AMD_API_KEY=...                 # AMD Token Factory key
 export GOOGLE_CLOUD_PROJECT=...        # a project with Text-to-Speech enabled
-python -m sottovoce film.mp4 --audience it --out outputs/
-uvicorn sottovoce.server:app --port 8080   # the web app
+python -m sottovoce lesson.mp4 --audience en --out outputs/   # or --audience it
+uvicorn sottovoce.server:app --port 8080                      # the web app
 ```
-
-The web app takes an upload, shows each line as it is written and checked, plays the result with audio description on or off, and lets a describer edit or approve any line. An edited line is checked against the frames, re-voiced and re-mixed.
 
 `docker build .` builds the container that runs on Cloud Run.
 
 ## Tests
 
-`pytest` runs the logic tests. To also run the live tests against the real models and real film frames:
+`pytest` runs the logic tests. To also run the live tests against the real models and real frames:
 
-1. Fetch the test clip: `python scripts/fetch_test_clip.py media`, which saves the first 150 s of *Tears of Steel*.
+1. Fetch the test clip: `python scripts/fetch_test_clip.py media`.
 2. Set `AMD_API_KEY` and `GOOGLE_CLOUD_PROJECT`.
 
 The live tests include a planted-error test and an A2A round trip. The tests use no mocks.
 
-`python -m sottovoce.bench outputs/script.json` measures the checker. It plants one false detail in every verified line (a swapped object, person, place or colour, or an added object) and reports how many it catches, and how often it flags a line that was right.
+`python -m sottovoce.bench outputs/script.json` measures the checker. It plants one false detail in every verified line (a changed number, or a swapped object, place or colour) and reports how many it catches, and how often it flags a line that was right.
 
 ## Credits
 
-The test film is *Tears of Steel* (CC BY 3.0, © Blender Foundation, mango.blender.org).
+- Lessons: NASA STEMonstrations, *Moon Phases* and *Area and Volume* (NASA, public domain).
+- Engine test film: *Tears of Steel* (CC BY 3.0, © Blender Foundation, mango.blender.org).
 
 ## License
 

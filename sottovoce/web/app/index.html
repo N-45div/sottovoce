@@ -4,7 +4,7 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Sottovoce · App</title>
-  <meta name="description" content="Upload a video, watch every audio-description line get written and checked, then review and listen.">
+  <meta name="description" content="Upload a lesson video; every description for a blind child is written, checked against the picture and voiced.">
   <link rel="icon" href="/assets/logo.svg" type="image/svg+xml">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -26,17 +26,16 @@
   <div class="container app-container app-layout">
     <aside class="side">
       <section class="card upload-card">
-        <h3>Describe a video</h3>
+        <h3>Describe a lesson</h3>
         <form id="upload">
           <label class="drop" id="drop">
             <input type="file" name="video" accept="video/*" required>
-            <span class="drop-title" id="drop-title">Drop a video here, or choose one</span>
+            <span class="drop-title" id="drop-title">Drop a lesson video here, or choose one</span>
             <span class="small">MP4 or MOV, up to 5 minutes and 30 MB</span>
           </label>
-          <fieldset class="segmented" aria-label="Audience">
+          <fieldset class="segmented two" aria-label="Language of the description">
             <label><input type="radio" name="audience" value="it" checked><span>Italiano</span></label>
             <label><input type="radio" name="audience" value="en"><span>English</span></label>
-            <label><input type="radio" name="audience" value="extended"><span>Esteso</span></label>
           </fieldset>
           <div class="progress" id="progress" hidden><span id="progress-bar"></span></div>
           <button class="btn btn-primary" type="submit">Describe a video</button>
@@ -52,9 +51,9 @@
     <main class="main">
       <section class="card empty" id="empty">
         <p class="eyebrow">Start here</p>
-        <h2>Pick a film from the library, or upload your own.</h2>
-        <p class="body">Every line is written by Gemma 4, checked against the picture by Qwen3.8, and voiced to fit its pause. Nothing is aired until it is verified or you approve it.</p>
-        <button class="btn btn-ghost" id="open-sample" type="button" hidden>Open the sample film</button>
+        <h2>Pick a lesson from the library, or upload your own.</h2>
+        <p class="body">Gemma 4 describes what the teacher shows, Qwen3.8 checks every claim against the picture, and the video pauses whenever a child needs to hear what is on screen. Nothing reaches the child until it is verified or you approve it.</p>
+        <button class="btn btn-ghost" id="open-sample" type="button" hidden>Open the sample lesson</button>
       </section>
 
       <article id="job" hidden>

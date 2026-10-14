@@ -1,7 +1,7 @@
 "use strict";
 
 const $ = (id) => document.getElementById(id);
-const AUDIENCES = { it: "Italiano", en: "English, for visitors", extended: "Esteso: the picture waits" };
+const AUDIENCES = { it: "Italiano · per bambini", en: "English · for children" };
 const STATUS = {
   verified: "verified",
   approved: "approved by a person",
@@ -27,7 +27,7 @@ function el(tag, attrs = {}, ...children) {
 // Extended description holds the picture while a long line is spoken, so with
 // description on, every time after a hold lands later. Same rule as export.py.
 function timeMap() {
-  const extended = current?.audience === "extended" && $("ad-toggle").checked && current.status === "done";
+  const extended = current?.status === "done" && $("ad-toggle").checked; // every lesson audience holds the picture
   const cues = current?.script?.cues || [];
   const holds = extended
     ? cues
@@ -252,7 +252,7 @@ function upload(form) {
     if (request.status >= 400) { status.textContent = body.detail || `Upload failed (${request.status}).`; return; }
     status.textContent = "";
     form.reset();
-    $("drop-title").textContent = "Drop a video here, or choose one";
+    $("drop-title").textContent = "Drop a lesson video here, or choose one";
     await openJob(body.id);
   };
   request.onerror = () => { button.disabled = false; $("progress").hidden = true; status.textContent = "The upload did not reach the server."; };
@@ -265,7 +265,7 @@ function upload(form) {
 
 const drop = $("drop");
 const input = drop.querySelector("input");
-input.addEventListener("change", () => { $("drop-title").textContent = input.files[0]?.name || "Drop a video here, or choose one"; });
+input.addEventListener("change", () => { $("drop-title").textContent = input.files[0]?.name || "Drop a lesson video here, or choose one"; });
 ["dragenter", "dragover"].forEach((type) => drop.addEventListener(type, (e) => { e.preventDefault(); drop.classList.add("is-over"); }));
 ["dragleave", "drop"].forEach((type) => drop.addEventListener(type, () => drop.classList.remove("is-over")));
 drop.addEventListener("drop", (e) => {

@@ -21,7 +21,7 @@ from .asr import Word, dialogue_around, transcribe_cached
 from .audiences import AUDIENCES
 from .describe import Settings, describe_gap
 from .gaps import find_gaps, speech_spans, split_long
-from .shots import detect_cuts, duration, extract_frame, frame_times, shots_from_cuts
+from .shots import detect_cuts, duration, extract_frame, frame_times, is_black, shots_from_cuts
 from .voice import Speech, speak_within
 
 # Word budget per second of pause. The trimmed it-IT Chirp 3 HD voice speaks about
@@ -103,6 +103,13 @@ async def write_lines(
     gate = asyncio.Semaphore(concurrency)
 
     async def one(i: int, cue: Cue) -> None:
+        dark = await asyncio.gather(*(asyncio.to_thread(is_black, video, t) for t in cue.frames))
+        cue.frames = [t for t, black in zip(cue.frames, dark) if not black]
+        if not cue.frames:
+            cue.status = "skipped"  # only black on screen: nothing to describe
+            if on_cue:
+                on_cue(i, cue)
+            return
         try:
             async with gate:
                 frames = await asyncio.gather(*(asyncio.to_thread(extract_frame, video, t) for t in cue.frames))

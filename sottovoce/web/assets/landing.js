@@ -116,7 +116,7 @@ function hero(jobs) {
     else video.pause();
   }, { threshold: 0.25 }).observe(video);
   load(false);
-  render(LOOP[0]);
+  render(LOOP[0] + 1.5); // the first line inside the loop, before the film has buffered
 }
 
 function audiences(jobs) {

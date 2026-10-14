@@ -85,7 +85,7 @@ function renderStats(job) {
     ["Need review", count("needs_review")],
   ];
   if (job.cost_per_minute !== null && job.cost_per_minute !== undefined) {
-    stats.push(["AMD cost per minute of video", el("span", {}, `$${job.cost_per_minute.toFixed(4)}`, el("br"), el("small", {}, "a human describer: $15–75"))]);
+    stats.push(["AMD cost per minute of video", el("span", {}, `$${job.cost_per_minute.toFixed(4)}`, el("br"), el("small", {}, "a human describer: about $7–35"))]);
   }
   if (job.script?.timings?.describe) {
     const total = Object.values(job.script.timings).reduce((a, b) => a + b, 0);

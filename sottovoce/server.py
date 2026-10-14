@@ -24,7 +24,7 @@ from .audiences import AUDIENCES
 from .costs import cost
 from .describe import describe_gap
 from .export import export
-from .pipeline import Cue, Script, describe_video
+from .pipeline import Cue, Script, describe_video, record_speech
 from .shots import duration, extract_frame
 from .voice import speak_within
 
@@ -214,10 +214,12 @@ async def edit_cue(job_id: str, index: int, edit: Edit) -> dict:
         frames, cue.words, job.audience, before=cue.before, after=cue.after, draft=edit.line.strip()
     )
     cue.line, cue.status, cue.claims, cue.history = result.line, result.status, result.claims, result.history
-    speech = await asyncio.to_thread(speak_within, cue.line, cue.end - cue.start, job.audience)
+    limit = 60.0 if AUDIENCES[job.audience].extended else cue.end - cue.start
+    speech = await asyncio.to_thread(speak_within, cue.line, limit, job.audience)
     cue.audio = cue.audio or f"cue_{index:03d}.wav"
+    (job.dir / "audio").mkdir(exist_ok=True)
     (job.dir / "audio" / cue.audio).write_bytes(speech.wav)
-    cue.seconds, cue.rate, cue.fits = round(speech.seconds, 3), speech.rate, speech.fits
+    record_speech(cue, speech)
     await _save(job, script)
     return asdict(cue)
 

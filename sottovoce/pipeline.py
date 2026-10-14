@@ -22,7 +22,7 @@ from .audiences import AUDIENCES
 from .describe import Settings, describe_gap
 from .gaps import find_gaps, speech_spans, split_long
 from .shots import detect_cuts, duration, extract_frame, frame_times, shots_from_cuts
-from .voice import speak_within
+from .voice import Speech, speak_within
 
 # Word budget per second of pause. The trimmed it-IT Chirp 3 HD voice speaks about
 # 3.5 words a second; budgeting 2.8 leaves room to breathe, and the voice step
@@ -138,12 +138,25 @@ def voice_lines(cues: list[Cue], audience: str, out_dir: Path) -> None:
             return
         limit = 60.0 if extended else cue.end - cue.start
         speech = speak_within(cue.line, limit, audience)
-        cue.audio = f"cue_{i:03d}.wav"
+        cue.audio = cue.audio or f"cue_{i:03d}.wav"
         (out_dir / cue.audio).write_bytes(speech.wav)
-        cue.seconds, cue.rate, cue.fits = round(speech.seconds, 3), speech.rate, speech.fits
+        record_speech(cue, speech)
 
     with ThreadPoolExecutor(4) as pool:
         list(pool.map(one, range(len(cues)), cues))
+
+
+def record_speech(cue: Cue, speech: Speech) -> None:
+    """Store how the line was spoken. A line that runs over its pause would talk
+    over the next dialogue, so it goes to a person to shorten."""
+    cue.seconds, cue.rate, cue.fits = round(speech.seconds, 3), speech.rate, speech.fits
+    if not speech.fits:
+        cue.status = "needs_review"
+        cue.history = [*cue.history, {
+            "round": len(cue.history) + 1,
+            "line": cue.line,
+            "problems": [f"spoken in {speech.seconds:.1f} s, the pause is {cue.end - cue.start:.1f} s"],
+        }]
 
 
 async def describe_video(

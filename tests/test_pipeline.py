@@ -46,3 +46,24 @@ def test_a_pause_whose_models_all_fail_goes_to_a_person(tmp_path):
     assert cue.status == "needs_review"
     assert cue.line == ""
     assert cue.history[0]["problems"][0].startswith("no model answered")
+
+
+def test_a_line_too_long_for_its_pause_goes_to_a_person():
+    from sottovoce.pipeline import record_speech
+    from sottovoce.voice import Speech
+
+    cue = Cue(10.0, 13.0, 7, [11.0], line="Una riga lunga.", status="verified")
+    record_speech(cue, Speech(b"", 4.2, 1.1, False))
+
+    assert cue.status == "needs_review"
+    assert cue.history[-1]["problems"] == ["spoken in 4.2 s, the pause is 3.0 s"]
+
+
+def test_a_line_that_fits_keeps_its_status():
+    from sottovoce.pipeline import record_speech
+    from sottovoce.voice import Speech
+
+    cue = Cue(10.0, 13.0, 7, [11.0], line="Breve.", status="verified")
+    record_speech(cue, Speech(b"", 1.5, 1.0, True))
+    assert cue.status == "verified"
+    assert cue.history == []

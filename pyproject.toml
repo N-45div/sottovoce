@@ -27,7 +27,7 @@ dev = ["pytest>=8"]
 packages = ["sottovoce"]
 
 [tool.setuptools.package-data]
-sottovoce = ["web/*"]
+sottovoce = ["web/*", "web/app/*", "web/assets/*", "web/pricing/*"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

@@ -98,3 +98,23 @@ def test_cost_uses_the_models_that_wrote_the_job(client):
 
     assert deepseek["models"]["describer"] == "DeepSeek-V4-Flash-Vision-Exp"
     assert deepseek["cost_usd"] > gemma["cost_usd"] > 0
+
+
+def test_a_single_voiced_line_can_be_fetched_and_nothing_else(client):
+    response = client.get(f"/files/{JOB}/audio/cue_001.wav")
+    assert response.status_code == 200
+    assert response.headers["content-type"] == "audio/wav"
+    assert response.content[:4] == b"RIFF"
+    assert client.get(f"/files/{JOB}/audio/..%2Fscript.json").status_code == 404
+    assert client.get(f"/files/{JOB}/audio/job.json").status_code == 404
+
+
+def test_every_page_and_its_assets_are_served(client):
+    for path in ("/", "/app/", "/pricing/"):
+        page = client.get(path)
+        assert page.status_code == 200, path
+        assert "text/html" in page.headers["content-type"]
+        assert "Describe a video" in page.text
+    for asset in ("/assets/site.css", "/assets/landing.css", "/assets/landing.js", "/assets/app.css",
+                  "/assets/app.js", "/assets/logo.svg", "/assets/hero-poster.jpg"):
+        assert client.get(asset).status_code == 200, asset

@@ -8,6 +8,7 @@ from __future__ import annotations
 import asyncio
 import json
 import os
+import re
 import shutil
 import uuid
 from contextlib import asynccontextmanager
@@ -198,6 +199,18 @@ def job_file(job_id: str, name: str) -> FileResponse:
     if not path.exists():
         raise HTTPException(404)
     return FileResponse(path)
+
+
+@app.get("/files/{job_id}/audio/{name}")
+def cue_audio(job_id: str, name: str) -> FileResponse:
+    """One voiced line, so a page can play it on its own."""
+    job = _job(job_id)
+    if not re.fullmatch(r"cue_\d{3}\.wav", name):
+        raise HTTPException(404)
+    path = job.dir / "audio" / name
+    if not path.exists():
+        raise HTTPException(404)
+    return FileResponse(path, media_type="audio/wav")
 
 
 class Edit(BaseModel):

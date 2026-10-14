@@ -73,8 +73,14 @@ function hero(jobs) {
   const show = () => {
     const t = video.currentTime;
     if (t >= LOOP[1] || t < LOOP[0] - 1) { video.currentTime = LOOP[0]; return; }
+    render(t);
+  };
+
+  // The line for time `t`, straight from the script. Runs before the film has
+  // buffered too, so the card never sits on a loading message.
+  const render = (t) => {
     const cues = jobs[audience].script.cues.filter((c) => c.line && c.status !== "needs_review");
-    const cue = [...cues].reverse().find((c) => c.start <= t);
+    const cue = [...cues].reverse().find((c) => c.start <= t) || cues[0];
     if (!cue || cue === shown) return;
     shown = cue;
     $("hero-line").textContent = cue.line;
@@ -92,6 +98,7 @@ function hero(jobs) {
       document.querySelectorAll(".player-tabs .tab").forEach((t) => t.setAttribute("aria-selected", String(t === tab)));
       audience = tab.dataset.audience;
       load(true);
+      render(Math.max(video.currentTime, LOOP[0]));
     });
   });
   $("hero-sound").addEventListener("click", (event) => {
@@ -109,6 +116,7 @@ function hero(jobs) {
     else video.pause();
   }, { threshold: 0.25 }).observe(video);
   load(false);
+  render(LOOP[0]);
 }
 
 function audiences(jobs) {

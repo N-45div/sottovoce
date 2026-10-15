@@ -54,7 +54,7 @@
             </div>
             <p class="speaking-line" id="hero-line">Loading the lesson…</p>
             <ul class="chips" id="hero-chips"></ul>
-            <p class="small speaking-foot" id="hero-foot">Written by Gemma 4 and checked by Qwen3.8, both running on AMD Instinct GPUs. The lesson waits while it is spoken.</p>
+            <p class="small speaking-foot" id="hero-foot">Written by one open model and checked by another, both running on AMD Instinct GPUs. The lesson waits while it is spoken.</p>
           </div>
         </div>
         <p class="small credit">Lesson: NASA STEMonstrations, <em>Moon Phases</em> (public domain). The descriptions are real Sottovoce output, unedited.</p>
@@ -63,8 +63,8 @@
 
     <div class="marquee" aria-label="Built with">
       <div class="marquee-track">
-        <span>AMD Instinct GPUs</span><span>AMD Token Factory</span><span>Gemma 4</span><span>Qwen3.8</span><span>Google ADK</span><span>A2A protocol</span><span>Google Cloud Text-to-Speech</span><span>Cloud Run</span><span>WCAG 2.1</span><span>WebVTT</span>
-        <span aria-hidden="true">AMD Instinct GPUs</span><span aria-hidden="true">AMD Token Factory</span><span aria-hidden="true">Gemma 4</span><span aria-hidden="true">Qwen3.8</span><span aria-hidden="true">Google ADK</span><span aria-hidden="true">A2A protocol</span><span aria-hidden="true">Google Cloud Text-to-Speech</span><span aria-hidden="true">Cloud Run</span><span aria-hidden="true">WCAG 2.1</span><span aria-hidden="true">WebVTT</span>
+        <span>AMD Instinct GPUs</span><span>AMD Token Factory</span><span>DeepSeek-V4.1</span><span>Qwen3.8</span><span>Google ADK</span><span>A2A protocol</span><span>Google Cloud Text-to-Speech</span><span>Cloud Run</span><span>WCAG 2.1</span><span>WebVTT</span>
+        <span aria-hidden="true">AMD Instinct GPUs</span><span aria-hidden="true">AMD Token Factory</span><span aria-hidden="true">DeepSeek-V4.1</span><span aria-hidden="true">Qwen3.8</span><span aria-hidden="true">Google ADK</span><span aria-hidden="true">A2A protocol</span><span aria-hidden="true">Google Cloud Text-to-Speech</span><span aria-hidden="true">Cloud Run</span><span aria-hidden="true">WCAG 2.1</span><span aria-hidden="true">WebVTT</span>
       </div>
     </div>
 
@@ -93,7 +93,7 @@
         <ol class="steps grid grid-3">
           <li class="card step" data-reveal><span class="step-n">01</span><h3>Listens to the teacher</h3><p class="body">It transcribes the lesson and finds every moment the teacher points at the screen: "look at this", "you can see", "guardate", "ecco".</p></li>
           <li class="card step" data-reveal><span class="step-n">02</span><h3>Pauses when it matters</h3><p class="body">Right after the teacher points, in the natural pauses, and whenever the picture keeps changing with nothing described.</p></li>
-          <li class="card step" data-reveal><span class="step-n">03</span><h3>Writes for a child</h3><p class="body">Gemma 4 reads the board, numbers and formulas exactly, explains a diagram by how it is built, and uses short sentences and simple words.</p></li>
+          <li class="card step" data-reveal><span class="step-n">03</span><h3>Writes for a child</h3><p class="body">A vision model reads the board, numbers and formulas exactly, explains a diagram by how it is built, and uses short sentences and simple words.</p></li>
           <li class="card step" data-reveal><span class="step-n">04</span><h3>Checks every claim</h3><p class="body">Qwen3.8, a different model family, checks each claim against the picture. A wrong number would teach a child something false, so it goes back.</p></li>
           <li class="card step" data-reveal><span class="step-n">05</span><h3>Speaks while the lesson waits</h3><p class="body">A natural voice reads the description and the video holds until it ends. Nothing the teacher says is talked over.</p></li>
           <li class="card step" data-reveal><span class="step-n">06</span><h3>The teacher approves</h3><p class="body">Only verified or approved lines reach the child. Edit any line and it is checked, re-voiced and re-mixed in about half a minute.</p></li>
@@ -193,7 +193,7 @@
           <details><summary>How accurate is it?</summary><p class="body" id="faq-accuracy">Every line is checked against the picture by a second model, and we measure that checker by planting false details. Nothing reaches a child unless the checker verified it or a teacher approved it.</p></details>
           <details><summary>What if the teacher never stops talking?</summary><p class="body">The lesson waits. Sottovoce holds the picture after the sentence, speaks the description, then lets the teacher carry on. It also steps in when the picture keeps changing and nothing has been described for a while.</p></details>
           <details><summary>Which languages and ages?</summary><p class="body">Italian and English, written for children of about 8 to 13. You get the described video, a separate narration track and a WebVTT descriptions file.</p></details>
-          <details><summary>What runs on AMD?</summary><p class="body">Every vision call. Gemma 4 writes and Qwen3.8 checks, both open models on AMD Instinct GPUs through AMD Token Factory. If one model is down, a backup on the same platform takes over.</p></details>
+          <details><summary>What runs on AMD?</summary><p class="body">Every vision call. DeepSeek-V4.1 writes and Qwen3.8 checks, both open models on AMD Instinct GPUs through AMD Token Factory. The library lessons were written by Gemma 4 on Oct 15; when AMD retired Gemma 4 from Token Factory on Oct 16, the writer moved to the next model on the same platform. If a model is down or gone, a backup takes over.</p></details>
           <details><summary>Can our lessons stay private?</summary><p class="body">The hosted version keeps uploads in a private bucket in the EU (Milan) and sends only keyframes and transcript snippets to AMD Token Factory. The models are open, so a school network or publisher can run them on its own AMD GPUs.</p></details>
           <details><summary>Does it describe people's appearance?</summary><p class="body">It describes what people do and hold when it matters for the lesson. It never describes skin colour or ethnicity.</p></details>
         </div>

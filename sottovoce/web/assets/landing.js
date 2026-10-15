@@ -45,6 +45,10 @@ function timeMap(cues) {
 }
 
 const aired = (job) => job.script.cues.filter((c) => c.line && AIRED.has(c.status));
+// Each lesson records the models that wrote and checked it; Gemma 4 wrote the
+// library lessons before AMD retired it from Token Factory on Oct 16.
+const NAMES = { "Gemma-4-31B-IT": "Gemma 4", "DeepSeek-V4.1-Flash": "DeepSeek-V4.1", "DeepSeek-V4-Flash-Vision-Exp": "DeepSeek-V4 Vision", "Qwen3.8-27B": "Qwen3.8" };
+const named = (model) => NAMES[model] || model;
 const teacherSaid = (cue) => cue.focus || cue.before.split(/(?<=[.?!])\s+/).slice(-1)[0] || "";
 
 function hero(job) {
@@ -72,7 +76,7 @@ function hero(job) {
       $("hero-status").hidden = false;
       $("hero-status").textContent = cue.status;
       $("hero-chips").replaceChildren(...cue.claims.map((c, i) => chip(c, i)));
-      $("hero-foot").textContent = `${clock(cue.start)} · Written by Gemma 4 and checked by Qwen3.8 on AMD Instinct GPUs.`;
+      $("hero-foot").textContent = `${clock(cue.start)} · Written by ${named(job.models.describer)} and checked by ${named(job.models.verifier)} on AMD Instinct GPUs.`;
     } else {
       $("hero-label").textContent = "A blind child hears only the teacher";
       $("hero-line").textContent = `"${teacherSaid(cue)}"`;

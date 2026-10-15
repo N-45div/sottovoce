@@ -107,6 +107,14 @@ def test_a_pointing_hold_freezes_on_the_frame_that_was_described():
     assert holds([pointing, pause]) == [(44.17, 6.26, 46.0), (61.0, 3.3, 61.0)]
 
 
+def test_a_catch_up_hold_freezes_on_the_older_frame_it_described():
+    # Area and Volume: the cube was described from 72.6 s and 81.1 s, but the
+    # lesson only paused at 89.2 s, when the next slide was already up.
+    catch_up = Cue(89.14, 89.18, 22, [72.62, 81.12], audio="a.wav", seconds=7.85)
+    recent = Cue(120.0, 120.04, 22, [118.5, 119.6], audio="b.wav", seconds=4.0)
+    assert holds([catch_up, recent]) == [(89.18, 8.11, 81.12), (120.04, 4.26, 120.04)]
+
+
 @pytest.mark.skipif(not CLIP.exists(), reason="test clip not downloaded")
 def test_a_hold_on_a_later_frame_keeps_the_same_length(tmp_path):
     out = tmp_path / "held.mp4"

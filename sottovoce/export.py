@@ -72,6 +72,7 @@ def mix(video: Path, narration_wav: Path, cues: list[Cue], out: Path, duck: floa
 
 HOLD_PAD = 0.3  # seconds of quiet after a held line, before the film resumes
 SETTLE = 0.8  # seconds past the last described frame, clear of a dissolve
+STALE = 2.0  # a described frame this much older than the hold may have left the screen
 
 
 def holds(cues: list[Cue]) -> list[tuple[float, float, float]]:
@@ -81,16 +82,23 @@ def holds(cues: list[Cue]) -> list[tuple[float, float, float]]:
     lesson never talks over it. The held frame is the latest one the line was
     written from: after "let's take a look at…" the diagram appears a moment
     after the sentence, and freezing on the teacher's face instead would show
-    one thing while describing another.
+    one thing while describing another. The same holds the other way round: a
+    line that catches up on a long stretch was written from frames seconds
+    earlier, and by the pause the cube it describes has given way to a new slide.
     """
     out = []
     for cue in cues:
         if not (cue.audio and cue.seconds > cue.end - cue.start):
             continue
         latest = max(cue.frames, default=cue.end)
-        # Lessons cut to diagrams with dissolves; a frame mid-dissolve shows the
-        # teacher and the diagram blended, so freeze a little past it.
-        show = latest + SETTLE if latest > cue.end + 0.05 else cue.end
+        if latest > cue.end + 0.05:
+            # Lessons cut to diagrams with dissolves; a frame mid-dissolve shows the
+            # teacher and the diagram blended, so freeze a little past it.
+            show = latest + SETTLE
+        elif cue.end - latest > STALE:
+            show = latest
+        else:
+            show = cue.end
         out.append((cue.end, round(cue.seconds - (cue.end - cue.start) + HOLD_PAD, 3), round(show, 3)))
     return out
 

@@ -2,7 +2,7 @@
 
 **Blind children hear the lesson. Sottovoce tells them what is on the board.**
 
-**Live app: https://sottovoce-408280170923.europe-west8.run.app**
+**Live app: https://sottovoce-ai.web.app**
 
 When a teacher in a video says "look at this", a blind child is left out. The formula on the board, the arrow on a diagram and the colour change in an experiment all reach only the eyes. Audio description fixes that: a voice says what is on screen. But it takes a trained describer, so almost no educational video has it. In a national US survey, educators of blind students said less than 5% of the educational videos they use were described (DCMP).
 

@@ -164,12 +164,15 @@ function cueCard(cue, index, animate) {
         el("summary", {}, `${history.length} round${history.length > 1 ? "s" : ""} with the checker`),
         el("ol", {}, history.map((h) => el("li", {}, h.line || "(no line)", h.problems.map((p) => el("div", { class: "problem" }, `✗ ${p}`))))))
     : null;
+  // A pointing or catch-up line sits in a sliver of time: the lesson holds there while it is spoken.
+  const pause = cue.end - cue.start;
+  const said = cue.seconds > pause ? "while the lesson waits" : `of ${pause.toFixed(1)} s`;
   return el("li", { class: `card cue${animate ? " new" : ""}`, "data-start": cue.start, "data-end": cue.end },
     el("div", { class: "cue-head" },
       el("button", { type: "button", class: "btn btn-ghost btn-small icon-btn", "aria-label": `Play from ${clock(cue.start)}`, onclick: () => seek(cue.start) }, "▶"),
-      el("span", { class: "time" }, `${clock(cue.start)} – ${clock(cue.end)}`),
+      el("span", { class: "time" }, pause < 0.5 ? clock(cue.start) : `${clock(cue.start)} – ${clock(cue.end)}`),
       el("span", { class: `badge ${cue.status}` }, STATUS[cue.status] || cue.status),
-      cue.seconds ? el("span", {}, `spoken in ${cue.seconds.toFixed(1)} s of ${(cue.end - cue.start).toFixed(1)} s${cue.rate > 1 ? ` at ${cue.rate}×` : ""}`) : null,
+      cue.seconds ? el("span", {}, `spoken in ${cue.seconds.toFixed(1)} s ${said}${cue.rate > 1 ? ` at ${cue.rate}×` : ""}`) : null,
     ),
     cue.status === "skipped" ? null : text,
     el("ul", { class: "chips" }, (cue.claims || []).map((c) => el("li", { class: `chip ${c.verdict}`, title: c.verdict.replace("_", " ") }, c.text))),

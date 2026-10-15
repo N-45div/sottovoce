@@ -30,6 +30,7 @@ from .audiences import AUDIENCES, Audience
 
 TOKEN_FACTORY = "https://developer.amd.com.cn/radeon/api/v1"
 WORD_SLACK = 1.2
+GONE = frozenset({400, 404})  # how Token Factory answers for a model it no longer serves
 
 
 @dataclass(frozen=True)
@@ -43,13 +44,17 @@ class Endpoint:
     backups: tuple[str, ...] = ()  # same server, used when the model is down
 
     def llm(self) -> BaseLlm:
-        """The model, wrapped so a 429/5xx moves on to the next backup.
+        """The model, wrapped so a failure moves on to the next backup.
 
         On Oct 14 Token Factory's Gemma answered 503 "no available workers" for
-        a while, which failed whole jobs until this fallback was added.
+        a while, which failed whole jobs until this fallback was added. On Oct 16
+        Gemma was gone from Token Factory altogether and answered 400 "model not
+        supported", which ADK's default (429 and 5xx only) does not fall back on.
         """
         models = [self._one(name) for name in (self.model, *self.backups)]
-        return FallbackModel(models=models) if len(models) > 1 else models[0]
+        if len(models) == 1:
+            return models[0]
+        return FallbackModel(models=models, retriable_status_codes=FallbackModel.DEFAULT_STATUS_CODES | GONE)
 
     def _one(self, name: str) -> LiteLlm:
         extra = {"extra_body": self.extra_body} if self.extra_body else {}

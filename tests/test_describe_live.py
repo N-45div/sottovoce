@@ -5,10 +5,11 @@ They need AMD_API_KEY and the test clip, and are skipped without them.
 
 import asyncio
 import os
+from dataclasses import replace
 
 import pytest
 
-from sottovoce.describe import count_words, describe_gap
+from sottovoce.describe import Settings, count_words, describe_gap
 from sottovoce.shots import extract_frame
 
 from media import CLIP
@@ -31,6 +32,17 @@ def test_real_frames_are_described_and_checked():
     if result.status == "verified":
         assert count_words(result.line) <= 14
         assert all(c["verdict"] == "supported" for c in result.claims)
+
+
+def test_a_model_token_factory_no_longer_serves_falls_back_to_the_next():
+    # Gemma-4-31B-IT was removed from Token Factory on Oct 16 and answers 400.
+    settings = Settings.from_env()
+    gone = replace(settings.describer, model="Gemma-4-31B-IT", backups=("DeepSeek-V4-Flash-Vision-Exp",))
+    frames = [extract_frame(CLIP, BRIDGE)]
+    result = asyncio.run(describe_gap(frames, words=14, audience="en", settings=replace(settings, describer=gone)))
+
+    assert result.line
+    assert result.tokens["describer"][1] > 0
 
 
 def test_planted_error_is_caught_and_rewritten():

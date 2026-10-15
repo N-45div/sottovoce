@@ -49,7 +49,7 @@ FILES = {
 CACHE = {"Cache-Control": "private, max-age=300"}
 running = asyncio.Semaphore(int(os.environ.get("SOTTOVOCE_PARALLEL_JOBS", "2")))
 MODELS = {
-    "describer": os.environ.get("SOTTOVOCE_DESCRIBER", "Gemma-4-31B-IT"),
+    "describer": os.environ.get("SOTTOVOCE_DESCRIBER", "DeepSeek-V4.1-Flash"),
     "verifier": os.environ.get("SOTTOVOCE_VERIFIER", "Qwen3.8-27B"),
 }
 

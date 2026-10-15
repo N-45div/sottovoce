@@ -2,10 +2,13 @@
 
 from __future__ import annotations
 
-# $ per million tokens (input, output), from Token Factory's /models on 2026-10-13.
+# $ per million tokens (input, output), from Token Factory's /models on 2026-10-13,
+# checked again on 2026-10-16 (unchanged; MiMo added). Gemma was removed on Oct 16;
+# its price stays so the lessons it wrote still cost out.
 PRICES = {
     "DeepSeek-V4-Flash-Vision-Exp": (0.14, 0.28),
     "DeepSeek-V4.1-Flash": (0.28, 0.56),
+    "MiMo-V2.6-Flash": (0.14, 0.28),
     "Qwen3.8-27B": (0.035, 0.07),
     "Qwen3.8-Flash-Next": (0.14, 0.28),
     "Gemma-4-31B-IT": (0.035, 0.07),

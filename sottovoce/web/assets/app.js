@@ -117,6 +117,9 @@ function renderStats(job) {
     const total = Object.values(job.script.timings).reduce((a, b) => a + b, 0);
     stats.push(["Processing time", el("span", {}, `${Math.round(total)} s`, el("small", {}, `for ${Math.round(job.script.duration)} s of video`))]);
   }
+  if (job.models?.describer) {
+    stats.push(["Written by", el("span", { class: "model" }, job.models.describer, el("small", {}, `checked by ${job.models.verifier}`))]);
+  }
   $("stats").replaceChildren(...stats.map(([label, value]) => el("div", {}, el("dt", {}, label), el("dd", {}, value))));
 }
 

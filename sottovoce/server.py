@@ -17,7 +17,7 @@ from dataclasses import asdict, dataclass, field
 from pathlib import Path
 
 from fastapi import FastAPI, File, Form, HTTPException, Request, Response, UploadFile
-from fastapi.responses import StreamingResponse
+from fastapi.responses import RedirectResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
@@ -225,6 +225,8 @@ def cue_audio(job_id: str, name: str, request: Request) -> Response:
 # (the browser asks for the next one), and a whole-file download is streamed
 # in chunks without a Content-Length.
 RANGE_CAP = 8 * 1024 * 1024
+PROXY_LIMIT = 30 * 1024 * 1024
+DIRECT_URL = os.environ.get("SOTTOVOCE_DIRECT_URL", "").rstrip("/")
 _RANGE = re.compile(r"bytes=(\d*)-(\d*)")
 
 
@@ -246,6 +248,11 @@ def media(request: Request, path: Path, media_type: str | None = None) -> Respon
     headers = {**CACHE, "Accept-Ranges": "bytes"}
     match = _RANGE.fullmatch(request.headers.get("range", "").strip())
     if not match or not (match[1] or match[2]):
+        forwarded = request.headers.get("x-forwarded-host", "")
+        if size > PROXY_LIMIT and DIRECT_URL and forwarded and forwarded not in DIRECT_URL:
+            # Behind Firebase Hosting a whole-file response stops at 32 MiB, so a
+            # big download goes straight to the Cloud Run address instead.
+            return RedirectResponse(f"{DIRECT_URL}{request.url.path}", status_code=307)
         return StreamingResponse(_read(path, 0, size), media_type=media_type, headers=headers)
     if match[1]:
         start = int(match[1])

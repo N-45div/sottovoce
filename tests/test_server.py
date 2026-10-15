@@ -141,3 +141,19 @@ def test_media_is_served_in_capped_ranges(client, monkeypatch):
     assert tail.content == whole.content[-5:]
 
     assert client.get(path, headers={"Range": f"bytes={size}-"}).status_code == 416
+
+
+def test_a_big_download_through_the_short_url_goes_to_cloud_run(client, monkeypatch):
+    monkeypatch.setattr(server, "PROXY_LIMIT", 1000)
+    monkeypatch.setattr(server, "DIRECT_URL", "https://direct.example")
+    path = f"/files/{JOB}/vtt"
+
+    proxied = client.get(path, headers={"x-forwarded-host": "sottovoce-ai.web.app"}, follow_redirects=False)
+    assert proxied.status_code == 307
+    assert proxied.headers["location"] == f"https://direct.example{path}"
+
+    assert client.get(path).status_code == 200  # straight to Cloud Run: streamed as before
+    itself = client.get(path, headers={"x-forwarded-host": "direct.example"}, follow_redirects=False)
+    assert itself.status_code == 200  # never redirects to itself
+    ranged = client.get(path, headers={"x-forwarded-host": "x", "Range": "bytes=0-"}, follow_redirects=False)
+    assert ranged.status_code == 206  # playback keeps using ranges through the short URL

@@ -35,7 +35,7 @@ Two NASA STEMonstrations lessons for children (*Moon Phases*, 4:21, and *Area an
 | Correct lines wrongly flagged | **0 of 32** |
 | Model cost on AMD Token Factory | **$0.00053 per minute of lesson** |
 
-Of the 8 planted errors the checker missed, 5 swapped "space station" for "space ship", which a frame can barely tell apart. 32 lines is a small sample, so read these as an early measurement, not a guarantee.
+Of the 8 planted errors the checker missed, 7 swapped "space station" for "space ship", which a frame can barely tell apart, and 1 swapped "astronaut" for "pilot". 32 lines is a small sample, so read these as an early measurement, not a guarantee.
 
 Examples of real lines from *Moon Phases*:
 - After *"let's take a look at where the space station is…"*: "A diagram shows the Earth and the International Space Station orbiting it."

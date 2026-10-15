@@ -43,8 +43,10 @@ FILES = {
     "script": "script.json",
 }
 # Media reads come off the Cloud Storage mount, so let browsers keep them a while.
+# "private": a shared CDN (Firebase Hosting in front of Cloud Run) would otherwise
+# cache the whole file, and it cut a 47.6 MB lesson off at 32 MiB.
 # Short, because an edit re-exports the files (the app also cache-busts its URLs).
-CACHE = {"Cache-Control": "public, max-age=300"}
+CACHE = {"Cache-Control": "private, max-age=300"}
 running = asyncio.Semaphore(int(os.environ.get("SOTTOVOCE_PARALLEL_JOBS", "2")))
 MODELS = {
     "describer": os.environ.get("SOTTOVOCE_DESCRIBER", "Gemma-4-31B-IT"),

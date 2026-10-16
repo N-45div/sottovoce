@@ -1,0 +1,98 @@
+{
+ "lesson": "Moon Phases (NASA STEMonstrations)",
+ "at": "48.6",
+ "asks": [
+  {
+   "question": "Where is the space station?",
+   "answer": "The space station is left of Earth.",
+   "status": "verified",
+   "claims": [
+    {
+     "text": "The space station is left of Earth.",
+     "verdict": "supported",
+     "frame": 1
+    }
+   ],
+   "models": {
+    "describer": "DeepSeek-V4.1-Flash",
+    "verifier": "Qwen3.8-27B"
+   },
+   "audio": "/assets/asks/83fd5e78e1.wav"
+  },
+  {
+   "question": "What do the words on the right say?",
+   "answer": "The words say: NOT TO SCALE.",
+   "status": "verified",
+   "claims": [
+    {
+     "text": "The words say: NOT TO SCALE.",
+     "verdict": "supported",
+     "frame": 1
+    }
+   ],
+   "models": {
+    "describer": "DeepSeek-V4.1-Flash",
+    "verifier": "Qwen3.8-27B"
+   },
+   "audio": "/assets/asks/f184b9a96a.wav"
+  },
+  {
+   "question": "Why does the moon change shape?",
+   "answer": "I can't see that in this picture. Ask your teacher.",
+   "status": "not_on_screen",
+   "claims": [],
+   "models": {
+    "describer": "DeepSeek-V4-Flash-Vision-Exp"
+   },
+   "audio": "/assets/asks/a89b092e76.wav"
+  }
+ ],
+ "map": {
+  "status": "verified",
+  "line": "space station (left, middle); Earth (middle, middle); text \"NOT TO SCALE\" (right, middle)",
+  "claims": [
+   {
+    "text": "space station (left, middle)",
+    "verdict": "supported",
+    "frame": 1
+   },
+   {
+    "text": "Earth (middle, middle)",
+    "verdict": "supported",
+    "frame": 1
+   },
+   {
+    "text": "text \"NOT TO SCALE\" (right, middle)",
+    "verdict": "supported",
+    "frame": 1
+   }
+  ],
+  "models": {
+   "describer": "DeepSeek-V4-Flash-Vision-Exp",
+   "verifier": "Qwen3.8-27B"
+  },
+  "items": [
+   {
+    "name": "space station",
+    "x": -0.8,
+    "y": "middle",
+    "spoken": "space station",
+    "audio": "/assets/asks/b501ccbb4f.wav"
+   },
+   {
+    "name": "Earth",
+    "x": 0.0,
+    "y": "middle",
+    "spoken": "Earth",
+    "audio": "/assets/asks/cbbf1bc499.wav"
+   },
+   {
+    "name": "text \"NOT TO SCALE\"",
+    "x": 0.8,
+    "y": "middle",
+    "spoken": "text \"NOT TO SCALE\"",
+    "audio": "/assets/asks/17cc0b63fb.wav"
+   }
+  ]
+ }
+}

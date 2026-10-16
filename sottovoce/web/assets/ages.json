@@ -1,0 +1,86 @@
+{
+ "lesson": "Area and Volume (NASA STEMonstrations)",
+ "at": 81.12,
+ "lines": {
+  "en-young": {
+   "line": "A cube. Yellow text says 8m³.",
+   "status": "verified",
+   "claims": [
+    {
+     "text": "A cube",
+     "verdict": "supported",
+     "frame": 1
+    },
+    {
+     "text": "Yellow text says 8m³",
+     "verdict": "supported",
+     "frame": 1
+    }
+   ],
+   "models": {
+    "describer": "DeepSeek-V4.1-Flash",
+    "verifier": "Qwen3.8-27B"
+   }
+  },
+  "en": {
+   "line": "A cube drawing. Each edge labeled 2m. Center shows 8m³. Bottom text: 2m long X 2m wide X 2m high = 8 cubic meters.",
+   "status": "verified",
+   "claims": [
+    {
+     "text": "A cube drawing.",
+     "verdict": "supported",
+     "frame": 1
+    },
+    {
+     "text": "Each edge labeled 2m.",
+     "verdict": "supported",
+     "frame": 1
+    },
+    {
+     "text": "Center shows 8m³.",
+     "verdict": "supported",
+     "frame": 1
+    },
+    {
+     "text": "Bottom text: 2m long X 2m wide X 2m high = 8 cubic meters.",
+     "verdict": "supported",
+     "frame": 1
+    }
+   ],
+   "models": {
+    "describer": "DeepSeek-V4.1-Flash",
+    "verifier": "Qwen3.8-27B"
+   }
+  },
+  "en-teen": {
+   "line": "A cube labelled 2m on each edge, 8m³ in the centre; text: 2m long X 2m wide X 2m high = 8 cubic meters.",
+   "status": "verified",
+   "claims": [
+    {
+     "text": "A cube",
+     "verdict": "supported",
+     "frame": 1
+    },
+    {
+     "text": "labelled 2m on each edge",
+     "verdict": "supported",
+     "frame": 1
+    },
+    {
+     "text": "8m³ in the centre",
+     "verdict": "supported",
+     "frame": 1
+    },
+    {
+     "text": "text: 2m long X 2m wide X 2m high = 8 cubic meters",
+     "verdict": "supported",
+     "frame": 1
+    }
+   ],
+   "models": {
+    "describer": "DeepSeek-V4.1-Flash",
+    "verifier": "Qwen3.8-27B"
+   }
+  }
+ }
+}

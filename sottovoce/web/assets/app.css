@@ -27,6 +27,15 @@
 .progress span { display: block; height: 100%; width: 0; background: var(--ink); transition: width 0.2s linear; }
 .upload-card .btn { width: 100%; }
 .upload-card .small { margin-top: 10px; }
+.desk-card form { display: grid; gap: 10px; margin-top: 12px; }
+.desk-card textarea {
+  width: 100%; resize: vertical; min-height: 88px; padding: 10px 12px; border-radius: 10px;
+  border: 1px solid var(--line); background: #fbfbfb; font: 400 14px/1.45 var(--sans); color: var(--ink);
+}
+.desk-card textarea:focus-visible { outline: 2px solid var(--accent); border-color: transparent; }
+.desk-card .btn { width: 100%; }
+.desk-reply { margin-top: 12px; display: grid; gap: 6px; }
+.desk-a { margin: 0; font: 400 14px/1.5 var(--sans); color: var(--ink); white-space: pre-line; overflow-wrap: anywhere; }
 
 .library { list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; }
 .library button {

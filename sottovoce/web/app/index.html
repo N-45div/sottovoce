@@ -47,6 +47,19 @@
           <p class="small" id="upload-status" role="status"></p>
         </form>
       </section>
+      <section class="card desk-card" aria-labelledby="desk-title">
+        <h3 id="desk-title">Or write to the desk</h3>
+        <p class="small">Paste a link to the video and say who it is for, as you would to a colleague. Or ask what the rules require. The desk runs on Evolus.</p>
+        <form id="desk">
+          <label class="sr-only" for="desk-text">Your request or question</label>
+          <textarea id="desk-text" name="text" rows="4" maxlength="2000" required placeholder="Please describe this for my 7-year-old, in English: https://…/lesson.mp4"></textarea>
+          <button class="btn btn-ghost" type="submit">Send to the desk</button>
+        </form>
+        <div class="desk-reply" id="desk-reply" role="status" aria-live="polite" hidden>
+          <p class="desk-a" id="desk-a"></p>
+          <p class="small" id="desk-foot"></p>
+        </div>
+      </section>
       <section class="card">
         <h3>Library</h3>
         <ul class="library" id="library"></ul>

@@ -321,6 +321,56 @@ $("video").addEventListener("timeupdate", () => {
   }
 });
 
+// The request desk (Evolus). A request with a video link runs the desk's workflow, which
+// starts the described lesson here; a question gets the desk agent's answer.
+const desk = { conversation: "" };
+
+function deskSays(text, foot = "") {
+  $("desk-reply").hidden = false;
+  $("desk-a").textContent = text;
+  $("desk-foot").textContent = foot;
+}
+
+async function writeToDesk(form) {
+  const button = form.querySelector("button[type=submit]");
+  const text = $("desk-text").value.trim();
+  if (!text) return;
+  button.disabled = true;
+  const t0 = performance.now();
+  const seconds = () => ((performance.now() - t0) / 1000).toFixed(0);
+  deskSays("The desk is reading it…");
+  try {
+    const body = new FormData();
+    body.set("text", text);
+    body.set("conversation", desk.conversation);
+    const sent = await api("/api/desk", { method: "POST", body });
+    if (sent.kind === "answer") {
+      desk.conversation = sent.conversation || "";
+      deskSays(sent.answer, `The desk agent answered from its knowledge library in ${seconds()} s.`);
+      return;
+    }
+    for (;;) {
+      await new Promise((resolve) => setTimeout(resolve, 3000));
+      const run = await api(`/api/desk/${sent.execution}`);
+      if (run.status === "Failed") { deskSays(run.error); return; }
+      if (run.status !== "Completed") { deskSays(`The desk is reading it… ${seconds()} s`); continue; }
+      const result = run.result || {};
+      deskSays(result.reply || "The desk has no answer for this one.", `Evolus workflow, ${seconds()} s.`);
+      if (result.status === "started" && /^[0-9a-f]{12}$/.test(result.job_id || "")) {
+        $("desk-text").value = "";
+        await openJob(result.job_id);
+      }
+      return;
+    }
+  } catch (error) {
+    deskSays(error.message);
+  } finally {
+    button.disabled = false;
+  }
+}
+
+$("desk").addEventListener("submit", (e) => { e.preventDefault(); writeToDesk(e.target); });
+
 const linked = location.hash.slice(1);
 if (/^[0-9a-f]{12}$/.test(linked)) openJob(linked).catch(() => loadLibrary());
 else loadLibrary().catch((error) => { $("upload-status").textContent = `Could not load the library: ${error.message}`; });

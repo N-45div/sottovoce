@@ -161,6 +161,7 @@ function hear(job) {
 
 async function evidence() {
   const e = await (await fetch("/assets/evidence.json")).json();
+  $("how-lede").textContent = `On two NASA lessons, ${e.waited} of ${e.lines} descriptions were longer than the teacher's pause. Ordinary audio description would drop them or rush them. Sottovoce made the lesson wait: ${e.wait_seconds} seconds over ${(e.lesson_seconds / 60).toFixed(1)} minutes of lesson.`;
   $("n-caught").textContent = `${Math.round((e.caught / e.planted) * 100)}%`;
   $("n-caught-note").textContent = `${e.caught} of ${e.planted}, two NASA lessons`;
   $("n-false").textContent = String(e.false_alarms);
@@ -177,8 +178,87 @@ async function evidence() {
   $("real-chips").replaceChildren(...x.claims.map((c, i) => chip(c, i + 1, false)));
 }
 
+// Ask the lesson: real answers from the live app (asks.json), and its sound map,
+// each name played from its side of the picture.
+const STATUS_NOTE = { verified: "checked against the picture", not_on_screen: "not in the picture", timeout: "not checked in time, so not said" };
+let mapAudio = null;
+
+function playButton(url) {
+  const button = document.createElement("button");
+  button.type = "button";
+  button.className = "btn btn-ghost btn-small";
+  button.textContent = "Play";
+  const audio = new Audio(url);
+  button.addEventListener("click", () => {
+    if (audio.paused) { audio.currentTime = 0; audio.play(); button.textContent = "Playing"; }
+    else { audio.pause(); button.textContent = "Play"; }
+  });
+  audio.addEventListener("ended", () => { button.textContent = "Play"; });
+  return button;
+}
+
+async function asksSection() {
+  const data = await (await fetch("/assets/asks.json")).json();
+  $("asks-list").replaceChildren(...data.asks.map((a) => {
+    const li = document.createElement("li");
+    li.className = "card ask-item";
+    li.innerHTML = '<p class="q"></p><p class="a"></p><div class="row"><span class="small"></span></div>';
+    li.querySelector(".q").textContent = `A child asks: "${a.question}"`;
+    li.querySelector(".a").textContent = a.answer;
+    li.querySelector(".small").textContent = STATUS_NOTE[a.status] || a.status;
+    li.querySelector(".row").append(playButton(a.audio));
+    return li;
+  }));
+  const ys = { top: 22, middle: 64, bottom: 82 };  // just under each thing, so a label never covers it
+  const dots = data.map.items.map((item) => {
+    const dot = document.createElement("span");
+    dot.className = "map-dot";
+    dot.style.left = `${50 + item.x * 45}%`;
+    dot.style.top = `${ys[item.y] || 50}%`;
+    dot.textContent = item.name;
+    return dot;
+  });
+  $("landing-map").replaceChildren(...dots);
+  $("map-play").addEventListener("click", async () => {
+    const ctx = (mapAudio ||= new AudioContext());
+    $("map-play").disabled = true;
+    for (const [i, item] of data.map.items.entries()) {
+      dots.forEach((d, j) => d.classList.toggle("speaking", i === j));
+      const buffer = await ctx.decodeAudioData(await (await fetch(item.audio)).arrayBuffer());
+      await new Promise((done) => {
+        const source = ctx.createBufferSource();
+        const pan = ctx.createStereoPanner();
+        source.buffer = buffer;
+        pan.pan.value = item.x;
+        source.connect(pan).connect(ctx.destination);
+        source.onended = done;
+        source.start();
+      });
+      await new Promise((r) => setTimeout(r, 250));
+    }
+    dots.forEach((d) => d.classList.remove("speaking"));
+    $("map-play").disabled = false;
+  });
+}
+
+async function agesSection() {
+  const data = await (await fetch("/assets/ages.json")).json();
+  const ages = [["en-young", "Age 6"], ["en", "Age 10"], ["en-teen", "Age 15"]];
+  $("ages-lines").replaceChildren(...ages.filter(([key]) => data.lines[key]).map(([key, label]) => {
+    const li = document.createElement("li");
+    li.className = "card";
+    li.innerHTML = '<span class="age"></span><p class="line"></p><ul class="chips"></ul>';
+    li.querySelector(".age").textContent = label;
+    li.querySelector(".line").textContent = data.lines[key].line;
+    li.querySelector(".chips").replaceChildren(...data.lines[key].claims.map((c, i) => chip(c, i, false)));
+    return li;
+  }));
+}
+
 reveal();
 evidence().catch(() => {});
+asksSection().catch(() => { $("asks-list").replaceChildren(); });
+agesSection().catch(() => {});
 lesson()
   .then((job) => {
     if (!job) { $("hero-line").textContent = "The sample lesson is not in the library yet."; return; }

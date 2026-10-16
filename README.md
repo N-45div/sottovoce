@@ -4,6 +4,8 @@
 
 **Live app: https://sottovoce-ai.web.app**
 
+On two NASA lessons for children, **24 of 32 descriptions were longer than the teacher's pause**. Ordinary audio description would drop them or rush them. Sottovoce makes the lesson wait (100 seconds over 8.5 minutes), and lets the child stop it and ask.
+
 When a teacher in a video says "look at this", a blind child is left out. The formula on the board, the arrow on a diagram and the colour change in an experiment all reach only the eyes. Audio description fixes that: a voice says what is on screen. But it takes a trained describer, so almost no educational video has it. In a national US survey, educators of blind students said less than 5% of the educational videos they use were described (DCMP).
 
 Sottovoce describes lessons for blind and low-vision children:
@@ -17,10 +19,15 @@ Sottovoce describes lessons for blind and low-vision children:
    The video holds while the line is spoken (extended audio description, WCAG 1.2.7), on the frame being described, so the teacher is never talked over.
 3. **Writes for a child.** An open vision model (DeepSeek-V4.1 since Oct 16, Gemma 4 before) reads the board, numbers and formulas exactly, explains a diagram by how it is built, and uses short sentences and simple words.
 4. **Checks every claim.** Qwen3.8, a different model family, splits each line into claims and checks each one against the frames. A wrong number would teach a child something false, so a contradicted claim goes back for a rewrite. A line that still fails goes to the teacher.
-5. **Speaks it.** Google Cloud Text-to-Speech (Chirp 3 HD), in Italian or English.
+5. **Speaks it.** Google Cloud Text-to-Speech (Chirp 3 HD), in Italian or English, for ages 5-8, 8-13 or 14-18: the same pauses and checks, told in different words.
 6. **The teacher approves.** Only lines the checker verified or a teacher approved reach the child. An edited line is checked, re-voiced and re-mixed.
 
 You get the described lesson as MP4, the narration as a separate track, and a WebVTT `kind="descriptions"` track.
+
+**While the child watches** (in the app's player):
+- **Ask.** The child pauses and asks about the picture by voice (hold A) or by typing. The answer comes from the frame on screen and is checked by the second model before it is spoken; if the picture does not show it, Sottovoce says so and suggests asking the teacher. The recording is deleted as soon as it is transcribed. On the live app, answers took 30-40 s (the shared AMD service was at its limit); while it works, the player says "Let me look" and ticks.
+- **Where is everything?** (M) Each thing in the picture is said from its side, through stereo panning, so a child with headphones hears how a diagram is laid out: on the Moon Phases diagram, the space station on the left, Earth in the middle, "NOT TO SCALE" on the right.
+- Space plays and pauses, R repeats the last answer.
 
 ## Measured on two real lessons
 

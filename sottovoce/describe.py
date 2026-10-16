@@ -80,21 +80,30 @@ class Endpoint:
     backup_base: str = ""  # the backups' server, when it is not the model's own
     backup_key: str = ""
 
-    def llm(self) -> BaseLlm:
+    def llm(self, quick: bool = False) -> BaseLlm:
         """The model, wrapped so a failure moves on to the next backup.
 
         On Oct 14 Token Factory's Gemma answered 503 "no available workers" for
         a while, which failed whole jobs until this fallback was added. On Oct 16
         Gemma was gone from Token Factory altogether and answered 400 "model not
         supported", which ADK's default (429 and 5xx only) does not fall back on.
+
+        `quick` is for a child waiting on an answer: a busy model is not tried
+        again (DeepSeek-V4.1 on Token Factory sat at its limit of 16 calls on
+        Oct 16, and retrying it made one answer take 70 s); the next backup is
+        the second try.
         """
-        models = [self._one(self.model, self.api_base, self.api_key)]
-        models += [self._one(name, self.backup_base or self.api_base, self.backup_key or self.api_key) for name in self.backups]
+        chain = [(self.model, self.api_base, self.api_key)]
+        chain += [(name, self.backup_base or self.api_base, self.backup_key or self.api_key) for name in self.backups]
+        models = [
+            self._one(name, base, key, retries=0 if quick and i < len(chain) - 1 else 2)
+            for i, (name, base, key) in enumerate(chain)
+        ]
         if len(models) == 1:
             return models[0]
         return FallbackModel(models=models, retriable_status_codes=FallbackModel.DEFAULT_STATUS_CODES | GONE)
 
-    def _one(self, name: str, api_base: str, api_key: str) -> LiteLlm:
+    def _one(self, name: str, api_base: str, api_key: str, retries: int = 2) -> LiteLlm:
         extra: dict = {"extra_body": self.extra_body} if self.extra_body else {}
         if api_key == GOOGLE:
             # Built per pause, so the token is fresh for the minute a pause takes.
@@ -105,7 +114,7 @@ class Endpoint:
             model=f"openai/{name}",
             api_base=api_base,
             api_key=api_key,
-            num_retries=2,  # Token Factory and Vertex both answer 429 when too many calls run at once
+            num_retries=retries,  # Token Factory and Vertex both answer 429 when too many calls run at once
             **extra,
         )
 
@@ -199,8 +208,62 @@ def clean_line(text: str) -> str:
     return ""
 
 
+# The honest answer when the picture does not show what a child asked about.
+NOT_SEEN = {
+    "en": "I can't see that in this picture. Ask your teacher.",
+    "it": "Non lo vedo in questa immagine. Chiedi al tuo insegnante.",
+}
+# A sound map line: "Earth (left, middle); the moon (right, middle); "NOT TO SCALE" (right, top)".
+_PLACE = re.compile(r"([^;()]+)\((left|middle|centre|center|right), ?(top|middle|centre|center|bottom)\)", re.I)
+_ACROSS = {"left": -0.8, "middle": 0.0, "centre": 0.0, "center": 0.0, "right": 0.8}
+
+
+def map_items(line: str) -> list[dict]:
+    """The things in a sound map line, each with where it sits: x from -0.8 (left) to 0.8 (right)."""
+    items = []
+    for name, across, down in _PLACE.findall(line):
+        down = down.lower()
+        items.append({
+            "name": name.strip(" ,"),
+            "x": _ACROSS[across.lower()],
+            "y": "middle" if down in ("centre", "center") else down,
+        })
+    return items
+
+
+def _on_demand_instruction(s) -> list[str]:
+    """The child paused the lesson: answer their question, or map where things are."""
+    if s.get("question"):
+        return [
+            "A child who cannot see the screen has paused a lesson video to ask about the "
+            "picture. The keyframes show what is on screen now.",
+            s["style"],
+            f'The child asks: "{s["question"]}"',
+            f"Answer in at most {s['words']} words, from the keyframes only. If the keyframes do not "
+            f"show the answer, or the question is not about the picture, reply exactly: {s['not_seen']} "
+            "Reply with the answer only.",
+        ]
+    # A sound map: where each thing is, so a child with headphones hears the layout.
+    return [
+        "List what is on screen for a child who cannot see it, so they can hear where each "
+        "thing is. The keyframes show what is on screen now.",
+        s["style"],
+        "Name the 2 to 5 main things from left to right, in exactly this form and nothing else: "
+        "name (left|middle|right, top|middle|bottom); name (left|middle|right, top|middle|bottom). "
+        "Write the positions in these English words whatever the language; use short, simple "
+        "names and put any written words in quotes.",
+    ]
+
+
 def _describer_instruction(ctx: ReadonlyContext) -> str:
     s = ctx.state
+    if s.get("question") or s.get("sound_map"):
+        parts = _on_demand_instruction(s)
+        if s.get("before"):
+            parts.append(f"What the teacher said just before: {s['before']}")
+        if s.get("feedback"):
+            parts.append(s["feedback"])
+        return "\n\n".join(parts)
     parts = [
         "You write audio description: one line spoken in a pause in the dialogue, "
         "for people who cannot see the screen. The keyframes come from the shots "
@@ -286,6 +349,14 @@ class GapDescriber(BaseAgent):
                 invocation_id=ctx.invocation_id,
                 actions=EventActions(state_delta={"line": line}),
             )
+            if state.get("question") and line.startswith(state["not_seen"][:18]):
+                # Nothing to check: the honest answer is that the picture does not show it.
+                yield Event(
+                    author=self.name,
+                    invocation_id=ctx.invocation_id,
+                    actions=EventActions(state_delta={"line": state["not_seen"], "rounds": round_, "status": "not_on_screen"}),
+                )
+                return
 
             async for event in self.verifier.run_async(ctx):
                 yield event
@@ -316,17 +387,17 @@ class GapDescriber(BaseAgent):
                 return
 
 
-def build_agent(settings: Settings, max_rounds: int = 3) -> GapDescriber:
+def build_agent(settings: Settings, max_rounds: int = 3, quick: bool = False) -> GapDescriber:
     describer = LlmAgent(
         name="describer",
-        model=settings.describer.llm(),
+        model=settings.describer.llm(quick),
         instruction=_describer_instruction,
         output_key="line",
         generate_content_config=types.GenerateContentConfig(temperature=0.3, max_output_tokens=400),
     )
     verifier = LlmAgent(
         name="verifier",
-        model=settings.verifier.llm(),
+        model=settings.verifier.llm(quick),
         instruction=_verifier_instruction,
         output_key="check",
         generate_content_config=types.GenerateContentConfig(temperature=0.0, max_output_tokens=800),
@@ -362,19 +433,24 @@ async def describe_gap(
     mime_type: str = "image/jpeg",
     draft: str = "",
     focus: str = "",
+    question: str = "",
+    sound_map: bool = False,
     settings: Settings | None = None,
     max_rounds: int = 3,
+    quick: bool = False,
 ) -> GapResult:
     """Run the describe-verify loop for one pause and return the outcome.
 
     With `draft`, the first round checks that line instead of writing one.
     With `focus`, the teacher has just pointed at something ("look at this"),
-    and the line says what it is.
+    and the line says what it is. With `question`, a child paused the lesson
+    to ask about the picture; with `sound_map`, the line says where each thing
+    is (see map_items). Either way the checker verifies it before it is spoken.
     """
     if isinstance(audience, str):
         audience = AUDIENCES[audience]
     settings = settings or Settings.from_env()
-    runner = InMemoryRunner(agent=build_agent(settings, max_rounds), app_name="sottovoce")
+    runner = InMemoryRunner(agent=build_agent(settings, max_rounds, quick), app_name="sottovoce")
     session = await runner.session_service.create_session(
         app_name="sottovoce",
         user_id="describer",
@@ -386,6 +462,9 @@ async def describe_gap(
             "after": after,
             "draft": draft,
             "focus": focus,
+            "question": question,
+            "sound_map": sound_map,
+            "not_seen": NOT_SEEN.get(audience.key[:2], NOT_SEEN["en"]),
         },
     )
     message = types.Content(

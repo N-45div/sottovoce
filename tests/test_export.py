@@ -4,7 +4,7 @@ import subprocess
 import numpy as np
 import pytest
 
-from sottovoce.export import export, hold_frames, holds, narration, shift, timestamp, to_vtt
+from sottovoce.export import export, hold_frames, holds, narration, original, shift, timestamp, to_vtt
 from sottovoce.pipeline import Cue, Script
 from sottovoce.voice import SAMPLE_RATE, write_wav
 
@@ -105,6 +105,14 @@ def test_a_pointing_hold_freezes_on_the_frame_that_was_described():
     pointing = Cue(44.13, 44.17, 22, [43.0, 45.2], audio="a.wav", seconds=6.0, focus="Let's take a look.")
     pause = Cue(60.0, 61.0, 22, [60.3, 60.7], audio="b.wav", seconds=4.0)
     assert holds([pointing, pause]) == [(44.17, 6.26, 46.0), (61.0, 3.3, 61.0)]
+
+
+def test_a_moment_in_the_held_video_maps_back_to_the_lesson():
+    held = [(12.0, 3.3, 14.0), (30.0, 1.0, 30.0)]
+    assert original(5.0, held) == 5.0  # before any hold
+    assert original(13.0, held) == 14.0  # inside the first hold: its frozen frame
+    assert original(20.0, held) == 16.7  # after it, 3.3 s later than the lesson
+    assert original(shift(40.0, held), held) == 40.0
 
 
 def test_a_catch_up_hold_freezes_on_the_older_frame_it_described():

@@ -108,6 +108,22 @@ def shift(t: float, held: list[tuple]) -> float:
     return round(t + sum(h[1] for h in held if h[0] <= t), 3)
 
 
+def original(t: float, held: list[tuple]) -> float:
+    """The moment of the original on screen at time `t` of the held video.
+
+    The inverse of `shift`; inside a hold the picture is the frozen frame, so a
+    child who pauses there and asks is asking about that frame.
+    """
+    passed = 0.0
+    for at, extra, *show in sorted(held):
+        if t < at + passed:
+            break
+        if t < at + passed + extra:
+            return show[0] if show else at
+        passed += extra
+    return round(t - passed, 3)
+
+
 def hold_frames(video: Path, held: list[tuple], total: float, out: Path) -> None:
     """Re-cut the video with each hold: a still of the described frame, and silence."""
     edges = [0.0, *(h[0] for h in held), total]

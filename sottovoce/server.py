@@ -25,8 +25,9 @@ from pydantic import BaseModel
 from .agent_api import build_a2a
 from .audiences import AUDIENCES
 from .costs import cost
-from .describe import GEMMA, describe_gap
-from .export import export
+from .describe import GEMMA, GapResult, describe_gap, map_items
+from .asr import Word, dialogue_around, transcribe
+from .export import AIRED, export, holds, original
 from .pipeline import Cue, Script, describe_video, record_speech
 from .shots import duration, extract_frame
 from .voice import speak_within
@@ -295,6 +296,147 @@ async def edit_cue(job_id: str, index: int, edit: Edit) -> dict:
     record_speech(cue, speech)
     await _save(job, script)
     return asdict(cue)
+
+
+# A child pauses the lesson and asks about the picture, or asks where things
+# are. The answer comes from the frame on screen, the checker verifies it, and
+# only a checked answer is spoken, like every line. The recorded question is
+# transcribed and deleted at once.
+ASK_WORDS, MAP_WORDS = 30, 40
+MAX_QUESTION_BYTES = 2 * 1024 * 1024  # several seconds of speech
+UNSURE = {
+    "en": "I'm not sure about that. Ask your teacher.",
+    "it": "Non ne sono sicuro. Chiedi al tuo insegnante.",
+}
+PLACE_WORDS = {"en": {"top": "at the top", "bottom": "at the bottom"}, "it": {"top": "in alto", "bottom": "in basso"}}
+asking = asyncio.Semaphore(3)  # model and voice calls for questions, across all lessons
+# A child is waiting: past this, the honest answer is "not sure", not silence.
+# Token Factory is shared by every team in the hackathon and was slow at peak.
+ASK_SECONDS = float(os.environ.get("SOTTOVOCE_ASK_SECONDS", "75"))
+
+
+async def _in_time(work) -> GapResult | None:
+    try:
+        return await asyncio.wait_for(work, ASK_SECONDS)
+    except TimeoutError:
+        return None
+
+
+def _done(job_id: str) -> tuple[Job, Script]:
+    job = _job(job_id)
+    script = job.script()
+    if job.status != "done" or script is None:
+        raise HTTPException(409, "the lesson is not described yet")
+    return job, script
+
+
+def _moment(script: Script, at: float, held: bool) -> float:
+    """The lesson moment on screen at `at` in the player (a frozen frame inside a hold)."""
+    if not held:
+        return max(0.0, min(at, script.duration))
+    aired = [c for c in script.cues if c.status in AIRED]
+    return max(0.0, min(original(at, holds(aired)), script.duration))
+
+
+def _said_before(job: Job, t: float) -> str:
+    path = job.dir / "source.words.json"
+    if not path.exists():
+        return ""
+    words = [Word(**w) for w in json.loads(path.read_text(encoding="utf-8"))]
+    return dialogue_around(words, t, t)[0]
+
+
+async def _frame_now(job: Job, t: float) -> list[bytes]:
+    """The picture on screen: one frame, since a second earlier can be a different shot."""
+    return [await asyncio.to_thread(extract_frame, job.dir / FILES["source"], t)]
+
+
+async def _voice(job: Job, text: str, limit: float) -> str:
+    speech = await asyncio.to_thread(speak_within, text, limit, job.audience)
+    folder = job.dir / "asks"
+    folder.mkdir(exist_ok=True)
+    name = f"{uuid.uuid4().hex[:12]}.wav"
+    (folder / name).write_bytes(speech.wav)
+    return f"/files/{job.id}/asks/{name}"
+
+
+async def _hear(job: Job, audio: UploadFile) -> str:
+    """What the child asked, from their recording; the recording is deleted straight away."""
+    folder = job.dir / "asks"
+    folder.mkdir(exist_ok=True)
+    path = folder / f"q_{uuid.uuid4().hex[:12]}.webm"
+    data = await audio.read(MAX_QUESTION_BYTES + 1)
+    if len(data) > MAX_QUESTION_BYTES:
+        raise HTTPException(413, "the question is too long; ask in a few seconds")
+    try:
+        path.write_bytes(data)
+        words = await asyncio.to_thread(transcribe, path, language=job.audience[:2])
+    finally:
+        path.unlink(missing_ok=True)
+    return " ".join(w.text for w in words)
+
+
+@app.post("/api/jobs/{job_id}/ask")
+async def ask(
+    job_id: str,
+    at: float = Form(...),
+    held: bool = Form(True),
+    question: str = Form(""),
+    audio: UploadFile | None = File(None),
+) -> dict:
+    """Answer a child's question about the picture on screen, checked, and spoken."""
+    job, script = _done(job_id)
+    async with asking:
+        if audio is not None:
+            question = await _hear(job, audio)
+        question = " ".join(question.split())[:200]
+        if not question:
+            raise HTTPException(400, "no question heard; hold the button and ask again")
+        t = _moment(script, at, held)
+        result = await _in_time(describe_gap(
+            await _frame_now(job, t), ASK_WORDS, job.audience, question=question, before=_said_before(job, t), max_rounds=2, quick=True
+        ))
+        status = result.status if result else "timeout"
+        lang = job.audience[:2]
+        answer = result.line if status in ("verified", "not_on_screen") else UNSURE.get(lang, UNSURE["en"])
+        audio_url = await _voice(job, answer, 30.0)
+    return {
+        "question": question, "answer": answer, "status": status, "at": t,
+        "claims": result.claims if result else [], "models": result.models if result else {}, "audio": audio_url,
+    }
+
+
+@app.post("/api/jobs/{job_id}/map")
+async def sound_map(job_id: str, at: float = Form(...), held: bool = Form(True)) -> dict:
+    """Where each thing in the picture is, each name voiced on its own for stereo playback."""
+    job, script = _done(job_id)
+    async with asking:
+        t = _moment(script, at, held)
+        result = await _in_time(describe_gap(
+            await _frame_now(job, t), MAP_WORDS, job.audience, sound_map=True, before=_said_before(job, t), max_rounds=2, quick=True
+        ))
+        status = result.status if result else "timeout"
+        items = map_items(result.line) if status == "verified" else []
+        places = PLACE_WORDS.get(job.audience[:2], PLACE_WORDS["en"])
+        spoken = [f"{item['name']}, {places[item['y']]}" if item["y"] in places else item["name"] for item in items]
+        urls = await asyncio.gather(*(_voice(job, text, 8.0) for text in spoken))
+    return {
+        "status": status, "line": result.line if result else "", "at": t,
+        "claims": result.claims if result else [], "models": result.models if result else {},
+        "items": [{**item, "spoken": text, "audio": url} for item, text, url in zip(items, spoken, urls)],
+    }
+
+
+@app.get("/files/{job_id}/asks/{name}")
+def ask_audio(job_id: str, name: str, request: Request) -> Response:
+    """A spoken answer or sound-map name."""
+    job = _job(job_id)
+    if not re.fullmatch(r"[0-9a-f]{12}\.wav", name):
+        raise HTTPException(404)
+    path = job.dir / "asks" / name
+    if not path.exists():
+        raise HTTPException(404)
+    return media(request, path, "audio/wav")
 
 
 @app.post("/api/jobs/{job_id}/cues/{index}/approve")

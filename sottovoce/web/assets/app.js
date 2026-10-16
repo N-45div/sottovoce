@@ -1,7 +1,11 @@
 "use strict";
 
 const $ = (id) => document.getElementById(id);
-const AUDIENCES = { it: "Italiano · per bambini", en: "English · for children" };
+const AUDIENCES = {
+  it: "Italiano · 8-13 anni", en: "English · ages 8-13",
+  "it-young": "Italiano · 5-8 anni", "en-young": "English · ages 5-8",
+  "it-teen": "Italiano · 14-18 anni", "en-teen": "English · ages 14-18",
+};
 const STATUS = {
   verified: "verified",
   approved: "approved by a person",
@@ -269,7 +273,10 @@ function upload(form) {
   $("progress").hidden = false;
   bar.style.width = "0";
   status.textContent = `Uploading ${file.name}…`;
-  request.send(new FormData(form));
+  // The audience is the language and, for a younger child or a teenager, the age level.
+  const body = new FormData(form);
+  body.set("audience", [body.get("language"), body.get("age")].filter(Boolean).join("-"));
+  request.send(body);
 }
 
 const drop = $("drop");

@@ -34,8 +34,13 @@
             <span class="small">MP4 or MOV, up to 5 minutes and 30 MB</span>
           </label>
           <fieldset class="segmented two" aria-label="Language of the description">
-            <label><input type="radio" name="audience" value="it" checked><span>Italiano</span></label>
-            <label><input type="radio" name="audience" value="en"><span>English</span></label>
+            <label><input type="radio" name="language" value="it" checked><span>Italiano</span></label>
+            <label><input type="radio" name="language" value="en"><span>English</span></label>
+          </fieldset>
+          <fieldset class="segmented" aria-label="Age of the child">
+            <label><input type="radio" name="age" value="young"><span>Ages 5–8</span></label>
+            <label><input type="radio" name="age" value="" checked><span>8–13</span></label>
+            <label><input type="radio" name="age" value="teen"><span>14–18</span></label>
           </fieldset>
           <div class="progress" id="progress" hidden><span id="progress-bar"></span></div>
           <button class="btn btn-primary" type="submit">Describe a lesson</button>

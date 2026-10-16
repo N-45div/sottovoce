@@ -74,7 +74,8 @@ def test_backups_wrap_the_model_in_an_adk_fallback(monkeypatch):
     monkeypatch.setenv("AMD_API_KEY", "k")
     settings = Settings.from_env()
 
-    assert settings.describer.backups == ("DeepSeek-V4-Flash-Vision-Exp",)
+    assert settings.describer.model == "Gemma-4-31B-IT"
+    assert settings.describer.backups == ("DeepSeek-V4.1-Flash", "DeepSeek-V4-Flash-Vision-Exp")
     assert isinstance(settings.describer.llm(), FallbackModel)
     monkeypatch.setenv("SOTTOVOCE_DESCRIBER_BACKUPS", "")
     assert isinstance(Settings.from_env().describer.llm(), LiteLlm)

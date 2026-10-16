@@ -56,7 +56,7 @@ FILES = {
 CACHE = {"Cache-Control": "private, max-age=300"}
 running = asyncio.Semaphore(int(os.environ.get("SOTTOVOCE_PARALLEL_JOBS", "2")))
 MODELS = {
-    "describer": os.environ.get("SOTTOVOCE_DESCRIBER", GEMMA if os.environ.get("SOTTOVOCE_VERTEX_PROJECT") else "DeepSeek-V4.1-Flash"),
+    "describer": os.environ.get("SOTTOVOCE_DESCRIBER", GEMMA if os.environ.get("SOTTOVOCE_VERTEX_PROJECT") else "Gemma-4-31B-IT"),
     "verifier": os.environ.get("SOTTOVOCE_VERIFIER", "Qwen3.8-27B"),
 }
 
@@ -345,10 +345,11 @@ asking = asyncio.Semaphore(3)  # model and voice calls for questions, across all
 ASK_SECONDS = float(os.environ.get("SOTTOVOCE_ASK_SECONDS", "75"))
 
 
-# The writer a waiting child gets first: on Oct 17 DeepSeek-V4-Flash-Vision answered
-# a question in about 3 s while DeepSeek-V4.1 sat at Token Factory's limit of 16
-# calls. Lessons keep the main writer; an answer is short and checked all the same.
-ASK_WRITER = os.environ.get("SOTTOVOCE_ASK_WRITER", "DeepSeek-V4-Flash-Vision-Exp")
+# The writer a waiting child gets first; empty keeps the main writer (Gemma 4, which
+# answered a question in 17 s on Oct 17). On Oct 17 DeepSeek-V4-Flash-Vision also
+# answered in about 3 s while DeepSeek-V4.1 sat at Token Factory's limit of 16 calls,
+# so set SOTTOVOCE_ASK_WRITER=DeepSeek-V4-Flash-Vision-Exp to put speed first.
+ASK_WRITER = os.environ.get("SOTTOVOCE_ASK_WRITER", "")
 
 
 def _ask_settings() -> Settings:

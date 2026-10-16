@@ -146,12 +146,14 @@ class Settings:
         vertex = env("SOTTOVOCE_VERTEX_PROJECT", "")
         return cls(
             describer=Endpoint(
-                model=env("SOTTOVOCE_DESCRIBER", GEMMA if vertex else "DeepSeek-V4.1-Flash"),
+                # Gemma 4 on AMD Token Factory; it was gone on Oct 16 and back on Oct 17,
+                # and while it was gone the DeepSeek backups wrote every line.
+                model=env("SOTTOVOCE_DESCRIBER", GEMMA if vertex else "Gemma-4-31B-IT"),
                 api_base=env("SOTTOVOCE_DESCRIBER_BASE", VERTEX.format(project=vertex) if vertex else TOKEN_FACTORY),
                 api_key=env("SOTTOVOCE_DESCRIBER_KEY", GOOGLE if vertex else key),
                 backups=_names(env(
                     "SOTTOVOCE_DESCRIBER_BACKUPS",
-                    "DeepSeek-V4.1-Flash,DeepSeek-V4-Flash-Vision-Exp" if vertex else "DeepSeek-V4-Flash-Vision-Exp",
+                    "DeepSeek-V4.1-Flash,DeepSeek-V4-Flash-Vision-Exp",
                 )),
                 backup_base=TOKEN_FACTORY,
                 backup_key=key,

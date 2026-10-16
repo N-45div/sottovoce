@@ -15,3 +15,12 @@ def test_short_words_in_a_capital_title_follow_the_title():
 def test_acronyms_and_ordinary_sentences_are_left_alone():
     assert speakable("A man watches RAI and AMD news.") == "A man watches RAI and AMD news."
     assert speakable("Un uomo è sul ponte.") == "Un uomo è sul ponte."
+
+
+def test_every_audience_speaks_in_its_own_language():
+    from sottovoce.audiences import AUDIENCES
+    from sottovoce.voice import VOICES
+
+    for key, audience in AUDIENCES.items():
+        language, _ = VOICES.get(key) or VOICES[key[:2]]
+        assert language == audience.language

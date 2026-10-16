@@ -92,7 +92,7 @@ def speakable(text: str) -> str:
 
 def synthesize(text: str, audience: str = "it", rate: float = 1.0) -> bytes:
     """Return 24 kHz mono 16-bit WAV for `text` in the audience's voice, trimmed."""
-    language, name = VOICES[audience]
+    language, name = VOICES.get(audience) or VOICES[audience[:2]]  # an age level speaks its language
     response = _client().synthesize_speech(
         input=tts.SynthesisInput(text=speakable(text)),
         voice=tts.VoiceSelectionParams(language_code=language, name=name),

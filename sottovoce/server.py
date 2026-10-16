@@ -27,6 +27,7 @@ from fastapi.responses import RedirectResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
+from . import desk
 from .agent_api import build_a2a
 from .audiences import AUDIENCES
 from .costs import cost
@@ -483,6 +484,42 @@ def ask_audio(job_id: str, name: str, request: Request) -> Response:
     if not path.exists():
         raise HTTPException(404)
     return media(request, path, "audio/wav")
+
+
+# The request desk runs on Evolus (desk.py). A request comes back as an execution for the
+# page to follow: the workflow reads it with a model and downloads the video, which can take
+# longer than the 60 s Firebase Hosting gives a proxied request.
+desk_calls = asyncio.Semaphore(4)
+
+
+@app.post("/api/desk")
+async def write_to_desk(text: str = Form(...), conversation: str = Form("")) -> dict:
+    """A teacher writes to the desk: a request with a video link, or a question."""
+    if not desk.ready():
+        raise HTTPException(503, "the request desk is not set up on this server")
+    text = text.strip()[:2000]
+    if not text:
+        raise HTTPException(400, "write the request or the question")
+    async with desk_calls:
+        try:
+            if desk.is_request(text):
+                return {"kind": "request", "execution": await desk.start(text)}
+            answer, conversation = await desk.ask(text, conversation)
+        except desk.DeskError as e:
+            raise HTTPException(502, str(e)) from None
+    return {"kind": "answer", "answer": answer, "conversation": conversation}
+
+
+@app.get("/api/desk/{execution}")
+async def desk_request(execution: str) -> dict:
+    """Where a request is; when done, the desk's reply and the lesson it started."""
+    if not desk.ready():
+        raise HTTPException(503, "the request desk is not set up on this server")
+    try:
+        run = await desk.follow(execution)
+    except desk.DeskError as e:
+        raise HTTPException(404 if str(e) == "no such request" else 502, str(e)) from None
+    return {"status": run.status, "result": run.result, "error": run.error}
 
 
 @app.post("/api/jobs/{job_id}/cues/{index}/approve")

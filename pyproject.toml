@@ -16,6 +16,7 @@ dependencies = [
     "google-cloud-texttospeech>=2.38",
     "numpy>=1.26",
     "fastapi>=0.115",
+    "httpx>=0.27",
     "uvicorn>=0.30",
     "python-multipart>=0.0.9",
 ]

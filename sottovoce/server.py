@@ -18,7 +18,7 @@ import urllib.request
 import uuid
 from collections import Counter
 from contextlib import asynccontextmanager
-from dataclasses import asdict, dataclass, field
+from dataclasses import asdict, dataclass, field, replace
 from pathlib import Path
 from urllib.parse import urlsplit
 
@@ -30,7 +30,7 @@ from pydantic import BaseModel
 from .agent_api import build_a2a
 from .audiences import AUDIENCES
 from .costs import cost
-from .describe import GEMMA, GapResult, describe_gap, map_items
+from .describe import GEMMA, TOKEN_FACTORY as TOKEN_FACTORY_BASE, GapResult, Settings, describe_gap, map_items
 from .asr import Word, dialogue_around, transcribe
 from .export import AIRED, export, holds, original
 from .pipeline import Cue, Script, describe_video, record_speech
@@ -345,6 +345,21 @@ asking = asyncio.Semaphore(3)  # model and voice calls for questions, across all
 ASK_SECONDS = float(os.environ.get("SOTTOVOCE_ASK_SECONDS", "75"))
 
 
+# The writer a waiting child gets first: on Oct 17 DeepSeek-V4-Flash-Vision answered
+# a question in about 3 s while DeepSeek-V4.1 sat at Token Factory's limit of 16
+# calls. Lessons keep the main writer; an answer is short and checked all the same.
+ASK_WRITER = os.environ.get("SOTTOVOCE_ASK_WRITER", "DeepSeek-V4-Flash-Vision-Exp")
+
+
+def _ask_settings() -> Settings:
+    settings = Settings.from_env()
+    d = settings.describer
+    if not ASK_WRITER or ASK_WRITER == d.model or d.api_base != TOKEN_FACTORY_BASE:
+        return settings
+    chain = (d.model, *d.backups)
+    return replace(settings, describer=replace(d, model=ASK_WRITER, backups=tuple(m for m in chain if m != ASK_WRITER)))
+
+
 async def _in_time(work) -> GapResult | None:
     try:
         return await asyncio.wait_for(work, ASK_SECONDS)
@@ -424,7 +439,7 @@ async def ask(
             raise HTTPException(400, "no question heard; hold the button and ask again")
         t = _moment(script, at, held)
         result = await _in_time(describe_gap(
-            await _frame_now(job, t), ASK_WORDS, job.audience, question=question, before=_said_before(job, t), max_rounds=2, quick=True
+            await _frame_now(job, t), ASK_WORDS, job.audience, question=question, before=_said_before(job, t), max_rounds=2, quick=True, settings=_ask_settings()
         ))
         status = result.status if result else "timeout"
         lang = job.audience[:2]
@@ -443,7 +458,7 @@ async def sound_map(job_id: str, at: float = Form(...), held: bool = Form(True))
     async with asking:
         t = _moment(script, at, held)
         result = await _in_time(describe_gap(
-            await _frame_now(job, t), MAP_WORDS, job.audience, sound_map=True, before=_said_before(job, t), max_rounds=2, quick=True
+            await _frame_now(job, t), MAP_WORDS, job.audience, sound_map=True, before=_said_before(job, t), max_rounds=2, quick=True, settings=_ask_settings()
         ))
         status = result.status if result else "timeout"
         items = map_items(result.line) if status == "verified" else []

@@ -206,3 +206,11 @@ def test_a_progress_stream_ends_before_a_proxy_would_cut_it(client, monkeypatch)
         body = "".join(r.iter_text())
     assert body.startswith("retry: 1000")
     assert '"type": "cue"' in body
+
+
+def test_a_question_tries_the_fast_writer_first_and_keeps_the_rest_as_backups(monkeypatch):
+    monkeypatch.setenv("AMD_API_KEY", "key")
+    settings = server._ask_settings()
+    assert settings.describer.model == server.ASK_WRITER
+    assert server.ASK_WRITER not in settings.describer.backups
+    assert "DeepSeek-V4.1-Flash" in settings.describer.backups

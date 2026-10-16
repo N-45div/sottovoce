@@ -12,6 +12,9 @@ PRICES = {
     "Qwen3.8-27B": (0.035, 0.07),
     "Qwen3.8-Flash-Next": (0.14, 0.28),
     "Gemma-4-31B-IT": (0.035, 0.07),
+    # Vertex AI's managed Gemma 4, from third-party listings of its price on 2026-10-16
+    # (Google's pricing page did not load for us); $0.07 in, $0.34 out.
+    "google/gemma-4-26b-a4b-it-maas": (0.07, 0.34),
     "MiniCPM-V-4.7-35B-A3B": (0.035, 0.07),
 }
 

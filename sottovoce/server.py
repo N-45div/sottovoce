@@ -12,6 +12,7 @@ import os
 import re
 import shutil
 import uuid
+from collections import Counter
 from contextlib import asynccontextmanager
 from dataclasses import asdict, dataclass, field
 from pathlib import Path
@@ -24,7 +25,7 @@ from pydantic import BaseModel
 from .agent_api import build_a2a
 from .audiences import AUDIENCES
 from .costs import cost
-from .describe import describe_gap
+from .describe import GEMMA, describe_gap
 from .export import export
 from .pipeline import Cue, Script, describe_video, record_speech
 from .shots import duration, extract_frame
@@ -49,7 +50,7 @@ FILES = {
 CACHE = {"Cache-Control": "private, max-age=300"}
 running = asyncio.Semaphore(int(os.environ.get("SOTTOVOCE_PARALLEL_JOBS", "2")))
 MODELS = {
-    "describer": os.environ.get("SOTTOVOCE_DESCRIBER", "DeepSeek-V4.1-Flash"),
+    "describer": os.environ.get("SOTTOVOCE_DESCRIBER", GEMMA if os.environ.get("SOTTOVOCE_VERTEX_PROJECT") else "DeepSeek-V4.1-Flash"),
     "verifier": os.environ.get("SOTTOVOCE_VERIFIER", "Qwen3.8-27B"),
 }
 
@@ -162,7 +163,9 @@ def get_job(job_id: str) -> dict:
     job = _job(job_id)
     script = job.script()
     models = (script.models if script else None) or MODELS
-    spent = sum(cost(c.tokens, models) for c in script.cues) if script else 0.0
+    spent = sum(cost(c.tokens, {**models, **c.models}) for c in script.cues) if script else 0.0
+    # Who wrote the lines that were written: the main model, or a backup while it was busy.
+    writers = Counter(c.models.get("describer", models["describer"]) for c in script.cues if c.line) if script else Counter()
     return {
         "id": job.id, "title": job.title, "audience": job.audience,
         "status": job.status, "error": job.error,
@@ -170,6 +173,7 @@ def get_job(job_id: str) -> dict:
         "cost_usd": round(spent, 5),
         "cost_per_minute": round(spent / (script.duration / 60), 5) if script else None,
         "models": models,
+        "writers": dict(writers.most_common()),
     }
 
 
@@ -282,6 +286,7 @@ async def edit_cue(job_id: str, index: int, edit: Edit) -> dict:
         focus=cue.focus, draft=edit.line.strip(),
     )
     cue.line, cue.status, cue.claims, cue.history = result.line, result.status, result.claims, result.history
+    cue.models = {"describer": "teacher", **result.models}  # the teacher wrote it, unless the checker sent it back for a rewrite
     limit = 60.0 if AUDIENCES[job.audience].extended else cue.end - cue.start
     speech = await asyncio.to_thread(speak_within, cue.line, limit, job.audience)
     cue.audio = cue.audio or f"cue_{index:03d}.wav"

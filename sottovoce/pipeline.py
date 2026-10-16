@@ -49,6 +49,7 @@ class Cue:
     fits: bool = True
     audio: str = ""
     focus: str = ""  # what the teacher said while pointing, for a pointing cue
+    models: dict[str, str] = field(default_factory=dict)  # agent -> the model that answered for this line
 
 
 @dataclass
@@ -186,6 +187,7 @@ async def write_lines(
         else:
             cue.line, cue.status = result.line, result.status
             cue.claims, cue.history, cue.tokens = result.claims, result.history, result.tokens
+            cue.models = result.models
         if on_cue:
             on_cue(i, cue)
 

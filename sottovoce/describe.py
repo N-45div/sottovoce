@@ -1,9 +1,11 @@
 """Write a description for one pause, check it against the frames, and fix it.
 
 Built on Google's Agent Development Kit. The describer and the verifier are
-two ADK agents on two different model families, both served on AMD GPUs by
-AMD's Token Factory, so one model's blind spots are not repeated by the
-other. Whether a line is good enough is decided by plain code, not a model.
+two ADK agents on two different model families, so one model's blind spots
+are not repeated by the other: Gemma 4 on Google Cloud's Vertex AI writes
+(with DeepSeek on AMD Token Factory behind it), and Qwen3.8 on AMD Token
+Factory checks. Whether a line is good enough is decided by plain code, not
+a model.
 """
 
 from __future__ import annotations
@@ -14,8 +16,11 @@ import re
 import uuid
 from collections.abc import AsyncGenerator
 from dataclasses import dataclass, field
+from functools import cache
 from typing import Literal
 
+import google.auth
+import google.auth.transport.requests
 from google.adk.agents import BaseAgent, LlmAgent
 from google.adk.agents.invocation_context import InvocationContext
 from google.adk.agents.readonly_context import ReadonlyContext
@@ -31,17 +36,49 @@ from .audiences import AUDIENCES, Audience
 TOKEN_FACTORY = "https://developer.amd.com.cn/radeon/api/v1"
 WORD_SLACK = 1.2
 GONE = frozenset({400, 404})  # how Token Factory answers for a model it no longer serves
+# Gemma 4 on Vertex AI, served by Google with no endpoint of our own to run.
+# Vertex offers the 26B-A4B as a managed model; the 31B is not one.
+VERTEX = "https://aiplatform.googleapis.com/v1/projects/{project}/locations/global/endpoints/openapi"
+GEMMA = "google/gemma-4-26b-a4b-it-maas"
+GOOGLE = "google"  # as an api_key: a fresh access token from the Google Cloud credentials
+
+
+@cache
+def _google_credentials():
+    credentials, _ = google.auth.default(scopes=["https://www.googleapis.com/auth/cloud-platform"])
+    return credentials
+
+
+def google_token() -> tuple[str, dict[str, str]]:
+    """An access token for Vertex AI, and the quota header that user credentials need.
+
+    On Cloud Run the service account's token needs no header. Run locally with
+    user credentials, Vertex bills the quota project, which can be pinned with
+    GOOGLE_CLOUD_QUOTA_PROJECT so other work on the machine does not move it.
+    """
+    credentials = _google_credentials()
+    if not credentials.valid:
+        credentials.refresh(google.auth.transport.requests.Request())
+    quota = os.environ.get("GOOGLE_CLOUD_QUOTA_PROJECT") or getattr(credentials, "quota_project_id", None)
+    return credentials.token, ({"x-goog-user-project": quota} if quota else {})
+
+
+def short_model(name: str) -> str:
+    """The model's own name, without the serving prefix Token Factory adds ("self-dploy/")."""
+    return name.removeprefix("self-dploy/")
 
 
 @dataclass(frozen=True)
 class Endpoint:
-    """One OpenAI-compatible model: Token Factory, or vLLM on our own MI300X."""
+    """One OpenAI-compatible model: Vertex AI, Token Factory, or vLLM on our own MI300X."""
 
     model: str
     api_base: str
     api_key: str
     extra_body: dict | None = None
-    backups: tuple[str, ...] = ()  # same server, used when the model is down
+    backups: tuple[str, ...] = ()  # used when the model is busy, down or gone
+    backup_base: str = ""  # the backups' server, when it is not the model's own
+    backup_key: str = ""
 
     def llm(self) -> BaseLlm:
         """The model, wrapped so a failure moves on to the next backup.
@@ -51,18 +88,24 @@ class Endpoint:
         Gemma was gone from Token Factory altogether and answered 400 "model not
         supported", which ADK's default (429 and 5xx only) does not fall back on.
         """
-        models = [self._one(name) for name in (self.model, *self.backups)]
+        models = [self._one(self.model, self.api_base, self.api_key)]
+        models += [self._one(name, self.backup_base or self.api_base, self.backup_key or self.api_key) for name in self.backups]
         if len(models) == 1:
             return models[0]
         return FallbackModel(models=models, retriable_status_codes=FallbackModel.DEFAULT_STATUS_CODES | GONE)
 
-    def _one(self, name: str) -> LiteLlm:
-        extra = {"extra_body": self.extra_body} if self.extra_body else {}
+    def _one(self, name: str, api_base: str, api_key: str) -> LiteLlm:
+        extra: dict = {"extra_body": self.extra_body} if self.extra_body else {}
+        if api_key == GOOGLE:
+            # Built per pause, so the token is fresh for the minute a pause takes.
+            api_key, headers = google_token()
+            if headers:
+                extra["extra_headers"] = headers
         return LiteLlm(
             model=f"openai/{name}",
-            api_base=self.api_base,
-            api_key=self.api_key,
-            num_retries=2,  # Token Factory answers 429 when too many calls run at once
+            api_base=api_base,
+            api_key=api_key,
+            num_retries=2,  # Token Factory and Vertex both answer 429 when too many calls run at once
             **extra,
         )
 
@@ -80,21 +123,29 @@ class Settings:
     def from_env(cls) -> Settings:
         """Read the two endpoints from the environment.
 
-        Both default to AMD Token Factory. The describer can point at our own
-        vLLM server instead, with SOTTOVOCE_DESCRIBER_BASE and _KEY. Backups
-        are comma-separated model names on the same server.
+        With SOTTOVOCE_VERTEX_PROJECT set, Gemma 4 on that project's Vertex AI
+        writes, and DeepSeek on AMD Token Factory takes over when Vertex is busy.
+        Without it the describer runs on Token Factory too. Either can point at
+        our own vLLM server instead, with SOTTOVOCE_DESCRIBER_BASE and _KEY.
+        Backups are comma-separated model names on Token Factory.
         """
         env = os.environ.get
         key = env("AMD_API_KEY", "")
         if not key:
             raise RuntimeError("set AMD_API_KEY to your AMD Token Factory key")
         effort = env("SOTTOVOCE_VERIFIER_EFFORT", "low")
+        vertex = env("SOTTOVOCE_VERTEX_PROJECT", "")
         return cls(
             describer=Endpoint(
-                model=env("SOTTOVOCE_DESCRIBER", "DeepSeek-V4.1-Flash"),
-                api_base=env("SOTTOVOCE_DESCRIBER_BASE", TOKEN_FACTORY),
-                api_key=env("SOTTOVOCE_DESCRIBER_KEY", key),
-                backups=_names(env("SOTTOVOCE_DESCRIBER_BACKUPS", "DeepSeek-V4-Flash-Vision-Exp")),
+                model=env("SOTTOVOCE_DESCRIBER", GEMMA if vertex else "DeepSeek-V4.1-Flash"),
+                api_base=env("SOTTOVOCE_DESCRIBER_BASE", VERTEX.format(project=vertex) if vertex else TOKEN_FACTORY),
+                api_key=env("SOTTOVOCE_DESCRIBER_KEY", GOOGLE if vertex else key),
+                backups=_names(env(
+                    "SOTTOVOCE_DESCRIBER_BACKUPS",
+                    "DeepSeek-V4.1-Flash,DeepSeek-V4-Flash-Vision-Exp" if vertex else "DeepSeek-V4-Flash-Vision-Exp",
+                )),
+                backup_base=TOKEN_FACTORY,
+                backup_key=key,
             ),
             verifier=Endpoint(
                 # Keep the checker in a different family from every describer, so
@@ -298,6 +349,7 @@ class GapResult:
     problems: list[str]
     history: list[dict] = field(default_factory=list)
     tokens: dict[str, list[int]] = field(default_factory=dict)
+    models: dict[str, str] = field(default_factory=dict)  # agent -> the model that answered, backups included
 
 
 async def describe_gap(
@@ -342,6 +394,7 @@ async def describe_gap(
         + [types.Part(text=f"{len(frames)} keyframes from the shots under this pause.")],
     )
     tokens: dict[str, list[int]] = {}
+    models: dict[str, str] = {}
     async for event in runner.run_async(
         user_id="describer", session_id=session.id, new_message=message
     ):
@@ -350,6 +403,8 @@ async def describe_gap(
             used = tokens.setdefault(event.author, [0, 0])
             used[0] += usage.prompt_token_count or 0
             used[1] += usage.candidates_token_count or 0
+        if event.model_version:
+            models[event.author] = short_model(event.model_version)
 
     state = (await runner.session_service.get_session(
         app_name="sottovoce", user_id="describer", session_id=session.id
@@ -362,4 +417,5 @@ async def describe_gap(
         problems=state.get("problems", []),
         history=state.get("history", []),
         tokens=tokens,
+        models=models,
     )

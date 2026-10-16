@@ -45,6 +45,19 @@ def test_a_model_token_factory_no_longer_serves_falls_back_to_the_next():
     assert result.tokens["describer"][1] > 0
 
 
+@pytest.mark.skipif(not os.environ.get("SOTTOVOCE_VERTEX_PROJECT"), reason="needs SOTTOVOCE_VERTEX_PROJECT")
+def test_gemma_on_vertex_writes_and_the_line_says_who_wrote_it():
+    settings = Settings.from_env()
+    frames = [extract_frame(CLIP, BRIDGE)]
+    result = asyncio.run(describe_gap(frames, words=14, audience="en", settings=settings))
+
+    assert settings.describer.model == "google/gemma-4-26b-a4b-it-maas"
+    assert result.line
+    # Gemma, or a DeepSeek backup on AMD when Vertex's shared queue is full, never a guess.
+    assert result.models["describer"] in (settings.describer.model, *settings.describer.backups)
+    assert result.models["verifier"].startswith("Qwen3.8")
+
+
 def test_planted_error_is_caught_and_rewritten():
     draft = "Un elefante rosa balla su un palco illuminato."
     frames = [extract_frame(CLIP, BRIDGE)]

@@ -157,3 +157,41 @@ def test_a_big_download_through_the_short_url_goes_to_cloud_run(client, monkeypa
     assert itself.status_code == 200  # never redirects to itself
     ranged = client.get(path, headers={"x-forwarded-host": "x", "Range": "bytes=0-"}, follow_redirects=False)
     assert ranged.status_code == 206  # playback keeps using ranges through the short URL
+
+
+@pytest.mark.parametrize("url", [
+    "http://example.com/lesson.mp4",  # not https
+    "https://127.0.0.1/lesson.mp4",  # this machine
+    "https://localhost/lesson.mp4",
+    "https://169.254.169.254/computeMetadata/v1/",  # the cloud's metadata server
+    "https://10.0.0.5/lesson.mp4",  # a private network
+])
+def test_a_link_inside_our_network_is_refused(client, url):
+    r = client.post("/api/jobs", data={"video_url": url, "audience": "en"})
+    assert r.status_code == 400
+    assert server.jobs.keys() == {JOB}
+
+
+def test_a_job_takes_a_file_or_a_link_not_both(client):
+    assert client.post("/api/jobs", data={"audience": "en"}).status_code == 400
+    both = client.post(
+        "/api/jobs",
+        data={"video_url": "https://example.com/a.mp4", "audience": "en"},
+        files={"video": ("a.mp4", b"x", "video/mp4")},
+    )
+    assert both.status_code == 400
+
+
+def test_asking_before_the_lesson_is_described_is_refused(client):
+    server.jobs[JOB].status = "running"
+    r = client.post(f"/api/jobs/{JOB}/ask", data={"at": "10", "question": "What is that?"})
+    assert r.status_code == 409
+
+
+def test_only_answer_audio_is_served_from_asks(client):
+    asks = server.DATA / "jobs" / JOB / "asks"
+    asks.mkdir()
+    (asks / "0123456789ab.wav").write_bytes(b"RIFF")
+    (asks / "q_0123456789ab.webm").write_bytes(b"secret")
+    assert client.get(f"/files/{JOB}/asks/0123456789ab.wav").status_code in (200, 206)
+    assert client.get(f"/files/{JOB}/asks/q_0123456789ab.webm").status_code == 404

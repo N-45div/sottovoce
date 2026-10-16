@@ -6,16 +6,21 @@
 from __future__ import annotations
 
 import asyncio
+import ipaddress
 import mimetypes
 import json
 import os
 import re
 import shutil
+import socket
+import urllib.error
+import urllib.request
 import uuid
 from collections import Counter
 from contextlib import asynccontextmanager
 from dataclasses import asdict, dataclass, field
 from pathlib import Path
+from urllib.parse import urlsplit
 
 from fastapi import FastAPI, File, Form, HTTPException, Request, Response, UploadFile
 from fastapi.responses import RedirectResponse, StreamingResponse
@@ -133,13 +138,26 @@ app = FastAPI(title="Sottovoce", lifespan=lifespan)
 
 
 @app.post("/api/jobs")
-async def create_job(video: UploadFile = File(...), audience: str = Form("it")) -> dict:
+async def create_job(
+    video: UploadFile | None = File(None),
+    audience: str = Form("it"),
+    video_url: str = Form(""),
+    title: str = Form(""),
+) -> dict:
+    """Describe a lesson: an uploaded video, or a link to one (how a request desk sends it)."""
     if audience not in AUDIENCES:
         raise HTTPException(400, f"audience must be one of {sorted(AUDIENCES)}")
-    job = Job(uuid.uuid4().hex[:12], Path(video.filename or "video").stem[:80], audience)
+    if (video is None) == (not video_url):
+        raise HTTPException(400, "send a video file or a video_url, not both")
+    name = video.filename if video else urlsplit(video_url).path.rsplit("/", 1)[-1]
+    job = Job(uuid.uuid4().hex[:12], (title or Path(name or "video").stem)[:80], audience)
     job.dir.mkdir(parents=True)
     try:
-        await _receive(video, job.dir / FILES["source"])
+        if video is not None:
+            await _receive(video, job.dir / FILES["source"])
+        else:
+            await asyncio.to_thread(_download, video_url, job.dir / FILES["source"])
+            await _check_video(job.dir / FILES["source"])
     except HTTPException:
         shutil.rmtree(job.dir, ignore_errors=True)
         raise
@@ -457,6 +475,49 @@ async def _receive(video: UploadFile, source: Path) -> None:
             if size > MAX_BYTES:
                 raise HTTPException(413, f"video larger than {MAX_BYTES >> 20} MB")
             f.write(chunk)
+    await _check_video(source)
+
+
+def _check_link(url: str) -> None:
+    """Only https links to public addresses: a link must never reach inside our network."""
+    parts = urlsplit(url)
+    if parts.scheme != "https" or not parts.hostname:
+        raise HTTPException(400, "give an https link to the video")
+    try:
+        addresses = {info[4][0] for info in socket.getaddrinfo(parts.hostname, parts.port or 443, proto=socket.IPPROTO_TCP)}
+    except socket.gaierror:
+        raise HTTPException(400, "the link's site could not be found") from None
+    if not addresses or not all(ipaddress.ip_address(a).is_global for a in addresses):
+        raise HTTPException(400, "the link must point to a public site")
+
+
+class _CheckedRedirects(urllib.request.HTTPRedirectHandler):
+    max_redirections = 3
+
+    def redirect_request(self, req, fp, code, msg, headers, newurl):
+        _check_link(newurl)  # every hop, or a redirect could lead inside
+        return super().redirect_request(req, fp, code, msg, headers, newurl)
+
+
+def _download(url: str, source: Path) -> None:
+    """Fetch a video from a public https link, refusing anything too big."""
+    _check_link(url)
+    request = urllib.request.Request(url, headers={"User-Agent": "Sottovoce/1.0 (lesson audio description)"})
+    try:
+        with urllib.request.build_opener(_CheckedRedirects).open(request, timeout=30) as r, source.open("wb") as f:
+            size = 0
+            while chunk := r.read(1 << 20):
+                size += len(chunk)
+                if size > MAX_BYTES:
+                    raise HTTPException(413, f"video larger than {MAX_BYTES >> 20} MB")
+                f.write(chunk)
+    except urllib.error.HTTPError as e:
+        raise HTTPException(400, f"the link answered {e.code}") from None
+    except (urllib.error.URLError, TimeoutError):
+        raise HTTPException(400, "the link could not be reached") from None
+
+
+async def _check_video(source: Path) -> None:
     try:
         seconds = await asyncio.to_thread(duration, source)
     except Exception:

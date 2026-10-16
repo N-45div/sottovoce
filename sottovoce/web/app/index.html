@@ -66,7 +66,10 @@
         </div>
 
         <div class="player-card card">
-          <video id="video" controls playsinline preload="metadata"></video>
+          <div class="stage">
+            <video id="video" controls playsinline preload="metadata"></video>
+            <div class="map-layer" id="map-layer" aria-hidden="true"></div>
+          </div>
           <div class="timeline" id="timeline" aria-label="Lines on the timeline"><span class="playhead" id="playhead"></span></div>
           <div class="player-bar">
             <label class="switch"><input type="checkbox" id="ad-toggle" checked><span class="switch-track"></span>Audio description</label>
@@ -77,6 +80,29 @@
             </span>
           </div>
         </div>
+
+        <section class="card ask" id="ask" aria-labelledby="ask-title">
+          <div class="ask-head">
+            <h3 id="ask-title">Ask the lesson</h3>
+            <p class="small">Pause anywhere. Hold <kbd>A</kbd> and ask about the picture, press <kbd>M</kbd> to hear where things are, <kbd>R</kbd> to hear it again, <kbd>Space</kbd> to play or pause. Every answer is checked against the picture before it is spoken.</p>
+          </div>
+          <div class="ask-row">
+            <button class="btn btn-primary ask-talk" id="ask-talk" type="button">Hold to ask</button>
+            <button class="btn btn-ghost" id="ask-map" type="button">Where is everything?</button>
+            <button class="btn btn-ghost" id="ask-repeat" type="button" disabled>Say it again</button>
+          </div>
+          <form class="ask-type" id="ask-form">
+            <label class="sr-only" for="ask-text">Type a question about the picture</label>
+            <input id="ask-text" name="question" type="text" maxlength="200" autocomplete="off" placeholder="Or type a question about the picture">
+            <button class="btn btn-ghost" type="submit">Ask</button>
+          </form>
+          <div class="ask-answer" id="ask-answer" role="status" aria-live="polite" hidden>
+            <p class="ask-q" id="ask-q"></p>
+            <p class="ask-a" id="ask-a"></p>
+            <ul class="chips" id="ask-chips"></ul>
+            <p class="small" id="ask-foot"></p>
+          </div>
+        </section>
 
         <dl class="stats" id="stats"></dl>
 

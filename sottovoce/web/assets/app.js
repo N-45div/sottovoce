@@ -306,3 +306,197 @@ $("video").addEventListener("timeupdate", () => {
 const linked = location.hash.slice(1);
 if (/^[0-9a-f]{12}$/.test(linked)) openJob(linked).catch(() => loadLibrary());
 else loadLibrary().catch((error) => { $("upload-status").textContent = `Could not load the library: ${error.message}`; });
+
+// Ask the lesson. A child pauses anywhere and asks about the picture by voice
+// (hold A or the button), types a question, or asks where things are (M). The
+// answer comes from the frame on screen and is checked before it is spoken;
+// while it is checked the player says "Let me look" and ticks softly, so a
+// child who cannot see the screen knows it is working.
+const asking = { busy: false, last: null, recorder: null, chunks: [], audio: null, ctx: null, tick: null };
+
+const audioCtx = () => (asking.ctx ||= new AudioContext());
+
+function say(text) {
+  if (!("speechSynthesis" in window)) return;
+  speechSynthesis.cancel();
+  speechSynthesis.speak(new SpeechSynthesisUtterance(text));
+}
+
+function startTicking() {
+  stopTicking();
+  const ctx = audioCtx();
+  asking.tick = setInterval(() => {
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.frequency.value = 880;
+    gain.gain.setValueAtTime(0.06, ctx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + 0.08);
+    osc.connect(gain).connect(ctx.destination);
+    osc.start();
+    osc.stop(ctx.currentTime + 0.09);
+  }, 2000);
+}
+
+function stopTicking() {
+  clearInterval(asking.tick);
+  asking.tick = null;
+}
+
+function showAnswer(question, answer, data = {}) {
+  $("ask-answer").hidden = false;
+  $("ask-answer").classList.toggle("thinking", !data.status);
+  $("ask-q").textContent = question;
+  $("ask-a").textContent = answer;
+  $("ask-chips").replaceChildren(...(data.claims || []).map((c) => el("li", { class: `chip ${c.verdict}` }, c.text)));
+  const notes = { verified: "Checked against the picture.", not_on_screen: "Not in the picture.", timeout: "The checker took too long, so nothing unchecked was said.", needs_review: "The checker could not confirm it, so it was not said." };
+  const writer = data.models?.describer;
+  $("ask-foot").textContent = [notes[data.status], writer ? `Written by ${namedOn(writer)}, checked by ${namedOn(data.models.verifier)}.` : ""].filter(Boolean).join(" ");
+}
+
+function playUrl(url, pan = 0) {
+  // Through Web Audio, so a sound-map name comes from its side of the picture.
+  return fetch(url)
+    .then((r) => r.arrayBuffer())
+    .then((buf) => audioCtx().decodeAudioData(buf))
+    .then((decoded) => new Promise((resolve) => {
+      const ctx = audioCtx();
+      const source = ctx.createBufferSource();
+      const panner = ctx.createStereoPanner();
+      source.buffer = decoded;
+      panner.pan.value = pan;
+      source.connect(panner).connect(ctx.destination);
+      source.onended = resolve;
+      source.start();
+    }));
+}
+
+function here() {
+  return { at: $("video").currentTime.toFixed(2), held: $("ad-toggle").checked ? "true" : "false" };
+}
+
+async function post(path, form, question) {
+  if (asking.busy || current?.status !== "done") return null;
+  asking.busy = true;
+  $("video").pause();
+  const { at, held } = here();
+  form.append("at", at);
+  form.append("held", held);
+  showAnswer(question, "Let me look…");
+  say(current.audience.startsWith("it") ? "Guardo." : "Let me look.");
+  startTicking();
+  try {
+    const res = await fetch(`/api/jobs/${current.id}/${path}`, { method: "POST", body: form });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.detail || "That did not work. Try again.");
+    return data;
+  } catch (e) {
+    showAnswer(question, e.message, { status: "error" });
+    say(e.message);
+    return null;
+  } finally {
+    stopTicking();
+    asking.busy = false;
+  }
+}
+
+async function askQuestion(form, shown) {
+  const data = await post("ask", form, shown);
+  if (!data) return;
+  showAnswer(data.question, data.answer, data);
+  asking.last = async () => playUrl(data.audio);
+  $("ask-repeat").disabled = false;
+  await asking.last();
+}
+
+async function soundMap() {
+  const data = await post("map", new FormData(), "Where is everything?");
+  if (!data) return;
+  const items = data.items || [];
+  const layer = $("map-layer");
+  const ys = { top: 22, middle: 50, bottom: 78 };
+  const dots = items.map((item) => el("span", { class: "map-dot", style: `left:${50 + item.x * 50}%;top:${ys[item.y] || 50}%` }, item.name));
+  layer.replaceChildren(...dots);
+  showAnswer("Where is everything?", items.length ? items.map((i) => i.spoken).join(". ") + "." : "I'm not sure where things are in this picture.", data);
+  asking.last = async () => {
+    for (const [i, item] of items.entries()) {
+      dots.forEach((d, j) => d.classList.toggle("speaking", i === j));
+      await playUrl(item.audio, item.x);
+      await new Promise((r) => setTimeout(r, 250));
+    }
+    dots.forEach((d) => d.classList.remove("speaking"));
+  };
+  $("ask-repeat").disabled = false;
+  if (!items.length) say("I'm not sure where things are in this picture.");
+  await asking.last();
+}
+
+async function startListening() {
+  if (asking.recorder || asking.busy || current?.status !== "done") return;
+  $("video").pause();
+  try {
+    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    const recorder = new MediaRecorder(stream);
+    asking.chunks = [];
+    recorder.ondataavailable = (e) => asking.chunks.push(e.data);
+    recorder.onstop = () => {
+      stream.getTracks().forEach((t) => t.stop());
+      const blob = new Blob(asking.chunks, { type: recorder.mimeType || "audio/webm" });
+      asking.recorder = null;
+      $("ask-talk").classList.remove("listening");
+      $("ask-talk").textContent = "Hold to ask";
+      if (blob.size < 2000) {
+        say("Hold the button while you ask.");
+        return;
+      }
+      const form = new FormData();
+      form.append("audio", blob, "question.webm");
+      askQuestion(form, "Your question");
+    };
+    asking.recorder = recorder;
+    recorder.start();
+    $("ask-talk").classList.add("listening");
+    $("ask-talk").textContent = "Listening…";
+  } catch {
+    say("The microphone is off. Type your question instead.");
+    $("ask-text").focus();
+  }
+}
+
+function stopListening() {
+  if (asking.recorder?.state === "recording") asking.recorder.stop();
+}
+
+$("ask-talk").addEventListener("pointerdown", startListening);
+$("ask-talk").addEventListener("pointerup", stopListening);
+$("ask-talk").addEventListener("pointerleave", stopListening);
+$("ask-map").addEventListener("click", soundMap);
+$("ask-repeat").addEventListener("click", () => asking.last?.());
+$("ask-form").addEventListener("submit", (e) => {
+  e.preventDefault();
+  const text = $("ask-text").value.trim();
+  if (!text) return;
+  const form = new FormData();
+  form.append("question", text);
+  askQuestion(form, text);
+  $("ask-text").value = "";
+});
+
+document.addEventListener("keydown", (e) => {
+  if ($("job").hidden || e.altKey || e.ctrlKey || e.metaKey) return;
+  if (e.target.closest("input, textarea, select, button, a, summary")) return;
+  const key = e.key.toLowerCase();
+  if (key === " ") {
+    e.preventDefault();
+    const video = $("video");
+    video.paused ? video.play() : video.pause();
+  } else if (key === "a" && !e.repeat) {
+    startListening();
+  } else if (key === "m") {
+    soundMap();
+  } else if (key === "r") {
+    asking.last?.();
+  }
+});
+document.addEventListener("keyup", (e) => {
+  if (e.key.toLowerCase() === "a") stopListening();
+});

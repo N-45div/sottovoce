@@ -86,3 +86,24 @@
 .cue.new { animation: pop 380ms var(--ease) both; }
 .icon-btn { width: 34px; padding: 0; }
 @media (prefers-reduced-motion: reduce) { .cue.new { animation: none; } }
+
+/* Ask the lesson: a child pauses, asks about the picture, or hears where things are. */
+.stage { position: relative; }
+.map-layer { position: absolute; inset: 0 0 34px; pointer-events: none; }
+.map-dot { position: absolute; transform: translate(-50%, -50%); display: flex; align-items: center; gap: 6px; padding: 6px 12px 6px 8px; border-radius: 999px; background: rgba(17, 17, 17, 0.72); color: #fff; font-size: 13px; font-weight: 500; white-space: nowrap; opacity: 0.55; transition: opacity 0.2s var(--ease), transform 0.2s var(--ease); }
+.map-dot::before { content: ""; width: 10px; height: 10px; border-radius: 50%; background: var(--accent); }
+.map-dot.speaking { opacity: 1; transform: translate(-50%, -50%) scale(1.12); }
+.ask { margin-top: 16px; padding: 20px; display: grid; gap: 14px; }
+.ask-head h3 { font: 400 26px/1.1 var(--display); margin: 0 0 6px; }
+.ask-head kbd { font: 500 12px/1 var(--mono); padding: 3px 6px; border-radius: 6px; border: 1px solid var(--line); background: #fbfbfb; }
+.ask-row { display: flex; flex-wrap: wrap; gap: 10px; }
+.ask-talk { min-width: 160px; }
+.ask-talk.listening { background: var(--accent); }
+.ask-type { display: flex; gap: 10px; }
+.ask-type input { flex: 1; min-width: 0; height: 40px; padding: 0 14px; border-radius: 999px; border: 1px solid var(--line); background: #fbfbfb; font: 400 14px/1 var(--sans); }
+.ask-type input:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.ask-answer { border-top: 1px solid var(--line); padding-top: 14px; display: grid; gap: 8px; }
+.ask-q { margin: 0; font-size: 13px; color: var(--muted); }
+.ask-a { margin: 0; font: 400 24px/1.3 var(--display); color: var(--ink); }
+.ask-answer.thinking .ask-a { color: var(--muted); }
+.sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }

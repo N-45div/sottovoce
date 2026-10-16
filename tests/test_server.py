@@ -195,3 +195,14 @@ def test_only_answer_audio_is_served_from_asks(client):
     (asks / "q_0123456789ab.webm").write_bytes(b"secret")
     assert client.get(f"/files/{JOB}/asks/0123456789ab.wav").status_code in (200, 206)
     assert client.get(f"/files/{JOB}/asks/q_0123456789ab.webm").status_code == 404
+
+
+def test_a_progress_stream_ends_before_a_proxy_would_cut_it(client, monkeypatch):
+    # Firebase Hosting ends proxied requests at 60 s; the browser reconnects after a clean end.
+    monkeypatch.setattr(server, "STREAM_SECONDS", 0.5)
+    job = server.jobs[JOB]
+    job.status, job.events = "running", [{"type": "cue", "index": 0, "cue": {}}]
+    with client.stream("GET", f"/api/jobs/{JOB}/events") as r:
+        body = "".join(r.iter_text())
+    assert body.startswith("retry: 1000")
+    assert '"type": "cue"' in body

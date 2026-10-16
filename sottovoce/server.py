@@ -196,6 +196,13 @@ def get_job(job_id: str) -> dict:
     }
 
 
+# Firebase Hosting ends a proxied request after 60 s, and a browser's EventSource
+# gives up on the 503 that follows, so a lesson that took minutes stayed on
+# "running". Each stream now ends by itself first; the browser reconnects and
+# gets every event again from the start.
+STREAM_SECONDS = 45.0
+
+
 @app.get("/api/jobs/{job_id}/events")
 async def job_events(job_id: str) -> StreamingResponse:
     job = _job(job_id)
@@ -205,9 +212,14 @@ async def job_events(job_id: str) -> StreamingResponse:
     listeners.setdefault(job_id, []).append(queue)
 
     async def stream():
+        deadline = asyncio.get_running_loop().time() + STREAM_SECONDS
         try:
-            while True:
-                event = await queue.get()
+            yield "retry: 1000\n\n"
+            while (left := deadline - asyncio.get_running_loop().time()) > 0:
+                try:
+                    event = await asyncio.wait_for(queue.get(), left)
+                except TimeoutError:
+                    return
                 yield f"data: {json.dumps(event, ensure_ascii=False)}\n\n"
                 if event.get("type") == "status" and event["status"] in ("done", "failed"):
                     return

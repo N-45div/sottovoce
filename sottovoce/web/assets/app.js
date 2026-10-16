@@ -192,8 +192,19 @@ function cueCard(cue, index, animate) {
 }
 
 function follow(id) {
+  source?.close();
   source = new EventSource(`/api/jobs/${id}/events`);
   const cues = [];
+  // A lesson can take minutes. If the stream fails anyway (a proxy timeout),
+  // look at the job: open it if it finished, otherwise follow it again.
+  source.onerror = async () => {
+    if (source.readyState !== EventSource.CLOSED) return; // reconnecting by itself
+    await new Promise((r) => setTimeout(r, 2000));
+    if (current?.id !== id) return;
+    const job = await (await fetch(`/api/jobs/${id}`)).json();
+    if (job.status === "done" || job.status === "failed") await openJob(id);
+    else follow(id);
+  };
   source.onmessage = async (message) => {
     const event = JSON.parse(message.data);
     if (event.type === "cue") {

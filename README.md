@@ -17,7 +17,7 @@ Sottovoce describes lessons for blind and low-vision children:
    - Whenever the picture keeps changing with nothing described for 25 seconds.
 
    The video holds while the line is spoken (extended audio description, WCAG 1.2.7), on the frame being described, so the teacher is never talked over.
-3. **Writes for a child.** An open vision model (DeepSeek-V4.1 since Oct 16, Gemma 4 before) reads the board, numbers and formulas exactly, explains a diagram by how it is built, and uses short sentences and simple words.
+3. **Writes for a child.** Gemma 4 (31B) reads the board, numbers and formulas exactly, explains a diagram by how it is built, and uses short sentences and simple words.
 4. **Checks every claim.** Qwen3.8, a different model family, splits each line into claims and checks each one against the frames. A wrong number would teach a child something false, so a contradicted claim goes back for a rewrite. A line that still fails goes to the teacher.
 5. **Speaks it.** Google Cloud Text-to-Speech (Chirp 3 HD), in Italian or English, for ages 5-8, 8-13 or 14-18: the same pauses and checks, told in different words.
 6. **The teacher approves.** Only lines the checker verified or a teacher approved reach the child. An edited line is checked, re-voiced and re-mixed.
@@ -31,9 +31,9 @@ You get the described lesson as MP4, the narration as a separate track, and a We
 
 ## Measured on two real lessons
 
-Two NASA STEMonstrations lessons for children (*Moon Phases*, 4:21, and *Area and Volume*, 4:09; public domain), run through the live models. AMD retired Gemma 4 from Token Factory on Oct 16, so both lessons were run again that day with the new writer:
+Two NASA STEMonstrations lessons for children (*Moon Phases*, 4:21, and *Area and Volume*, 4:09; public domain), run through the live models. Gemma 4 was off Token Factory on Oct 16 (it is back since Oct 17), so both lessons were also run that day with the backup writer:
 
-| | Gemma 4 writing (Oct 15, the library lessons) | DeepSeek-V4.1 writing (Oct 16, the live app) |
+| | Gemma 4 writing (Oct 15, the library lessons) | DeepSeek-V4.1 writing (Oct 16, the backup) |
 |---|---|---|
 | Lines written | 32 | 32 |
 | Verified by the checker | 32 | 32 |
@@ -54,7 +54,7 @@ The engine was first measured on 150 s of *Tears of Steel*. On 32 film lines, Ge
 ## Where it runs
 
 - **AMD:** every vision call goes to AMD Token Factory, which runs open models on AMD Instinct GPUs.
-  - The writer is DeepSeek-V4.1-Flash, with DeepSeek-V4-Flash-Vision as backup. Gemma-4-31B-IT wrote the library lessons until AMD retired it from Token Factory on Oct 16; the backup chain now also moves on when a model is gone (400 or 404), not only when it is busy.
+  - The writer is Gemma-4-31B-IT, with DeepSeek-V4.1-Flash and DeepSeek-V4-Flash-Vision as backups. On Oct 16 Gemma was off Token Factory for a day and answered 400 "model not supported"; the backup chain now moves on for a model that is gone (400 or 404), not only one that is busy, so the DeepSeek models wrote every line that day. Each line records which model wrote it.
   - The checker is Qwen3.8-27B at low reasoning effort, with Qwen3.8-Flash as backup.
 - **Google:**
   - The describe-check-rewrite loop is a [Google ADK](https://google.github.io/adk-docs/) agent: two `LlmAgent`s under a custom `BaseAgent`, each on an ADK `FallbackModel`. Whether a line passes is decided by code, not by a model.

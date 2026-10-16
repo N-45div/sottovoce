@@ -118,7 +118,10 @@ function renderStats(job) {
     stats.push(["Processing time", el("span", {}, `${Math.round(total)} s`, el("small", {}, `for ${Math.round(job.script.duration)} s of video`))]);
   }
   if (job.models?.describer) {
-    stats.push(["Written by", el("span", { class: "model" }, job.models.describer, el("small", {}, `checked by ${job.models.verifier}`))]);
+    // Lines a backup wrote while the main model was busy are counted under the backup.
+    const writers = Object.entries(job.writers || {});
+    const by = writers.length > 1 ? writers.map(([model, n]) => `${named(model)} ${n}`).join(" · ") : named(job.models.describer);
+    stats.push(["Written by", el("span", { class: "model" }, by, el("small", {}, `on ${runsOn(writers[0]?.[0] || job.models.describer)} · checked by ${namedOn(job.models.verifier)}`))]);
   }
   $("stats").replaceChildren(...stats.map(([label, value]) => el("div", {}, el("dt", {}, label), el("dd", {}, value))));
 }

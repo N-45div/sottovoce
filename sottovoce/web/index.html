@@ -63,8 +63,8 @@
 
     <div class="marquee" aria-label="Built with">
       <div class="marquee-track">
-        <span>AMD Instinct GPUs</span><span>AMD Token Factory</span><span>DeepSeek-V4.1</span><span>Qwen3.8</span><span>Google ADK</span><span>A2A protocol</span><span>Google Cloud Text-to-Speech</span><span>Cloud Run</span><span>WCAG 2.1</span><span>WebVTT</span>
-        <span aria-hidden="true">AMD Instinct GPUs</span><span aria-hidden="true">AMD Token Factory</span><span aria-hidden="true">DeepSeek-V4.1</span><span aria-hidden="true">Qwen3.8</span><span aria-hidden="true">Google ADK</span><span aria-hidden="true">A2A protocol</span><span aria-hidden="true">Google Cloud Text-to-Speech</span><span aria-hidden="true">Cloud Run</span><span aria-hidden="true">WCAG 2.1</span><span aria-hidden="true">WebVTT</span>
+        <span>AMD Instinct GPUs</span><span>AMD Token Factory</span><span>Gemma 4</span><span>Qwen3.8</span><span>Google ADK</span><span>A2A protocol</span><span>Google Cloud Text-to-Speech</span><span>Cloud Run</span><span>WCAG 2.1</span><span>WebVTT</span>
+        <span aria-hidden="true">AMD Instinct GPUs</span><span aria-hidden="true">AMD Token Factory</span><span aria-hidden="true">Gemma 4</span><span aria-hidden="true">Qwen3.8</span><span aria-hidden="true">Google ADK</span><span aria-hidden="true">A2A protocol</span><span aria-hidden="true">Google Cloud Text-to-Speech</span><span aria-hidden="true">Cloud Run</span><span aria-hidden="true">WCAG 2.1</span><span aria-hidden="true">WebVTT</span>
       </div>
     </div>
 
@@ -227,7 +227,7 @@
           <details><summary>How accurate is it?</summary><p class="body" id="faq-accuracy">Every line is checked against the picture by a second model, and we measure that checker by planting false details. Nothing reaches a child unless the checker verified it or a teacher approved it.</p></details>
           <details><summary>What if the teacher never stops talking?</summary><p class="body">The lesson waits. Sottovoce holds the picture after the sentence, speaks the description, then lets the teacher carry on. It also steps in when the picture keeps changing and nothing has been described for a while.</p></details>
           <details><summary>Which languages and ages?</summary><p class="body">Italian and English, written for children of about 8 to 13. You get the described video, a separate narration track and a WebVTT descriptions file.</p></details>
-          <details><summary>What runs on AMD?</summary><p class="body">Every vision call. DeepSeek-V4.1 writes and Qwen3.8 checks, both open models on AMD Instinct GPUs through AMD Token Factory. The library lessons were written by Gemma 4 on Oct 15; when AMD retired Gemma 4 from Token Factory on Oct 16, the writer moved to the next model on the same platform. If a model is down or gone, a backup takes over.</p></details>
+          <details><summary>What runs on AMD?</summary><p class="body">Every vision call. Gemma 4 writes and Qwen3.8 checks, both open models on AMD Instinct GPUs through AMD Token Factory. When Gemma 4 was taken off Token Factory for a day (Oct 16), the DeepSeek backups on the same platform wrote every line, and each line says which model wrote it.</p></details>
           <details><summary>Can our lessons stay private?</summary><p class="body">The hosted version keeps uploads in a private bucket in the EU (Milan) and sends only keyframes and transcript snippets to AMD Token Factory. The models are open, so a school network or publisher can run them on its own AMD GPUs.</p></details>
           <details><summary>Does it describe people's appearance?</summary><p class="body">It describes what people do and hold when it matters for the lesson. It never describes skin colour or ethnicity.</p></details>
         </div>

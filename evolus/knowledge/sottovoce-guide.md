@@ -5,12 +5,13 @@ Sottovoce describes lesson videos for blind and low-vision children. It is live 
 ## What a teacher sends
 
 - A lesson video: an upload, or an https link to the video file. Up to 5 minutes and 30 MB on the hosted app.
-- The language: English or Italian. Both are written for children aged 8 to 13.
+- The language: English or Italian.
+- The age: 5-8, 8-13 or 14-18. The same pauses and checks, told in different words for each age.
 
 ## What happens
 
 1. Sottovoce listens to the teacher and finds every moment they point at the screen ("look at this", "guardate").
-2. It pauses the lesson where a description is needed: right after the teacher points, in natural pauses, and when the picture changes with nothing said. The picture holds on the frame being described.
+2. It pauses the lesson where a description is needed: right after the teacher points, in natural pauses, and when the picture changes with nothing said. The picture holds on the frame being described, so a line longer than the teacher's pause is never cut or rushed.
 3. One model writes each line in simple words, reading text, numbers and formulas exactly.
 4. A second model, from a different family, checks every claim in the line against the frames. A wrong claim goes back for a rewrite.
 5. Only lines the checker verified, or a teacher approved, reach the child.
@@ -33,4 +34,4 @@ Open models on AMD Instinct GPUs write and check the lines. The agent loop is bu
 
 ## Measured
 
-On two NASA lessons for children, 32 of 32 lines were verified, and 5 were placed right after the teacher pointed. With a false detail planted in every line, the checker caught most of them and the rest go to the teacher. The model cost is a fraction of a cent per minute of lesson.
+On two NASA lessons for children, 32 of 32 lines were verified, and 5 were placed right after the teacher pointed. 24 of the 32 lines were longer than the teacher's pause, so the lesson waited 100 seconds over 8.5 minutes. With a false detail planted in every line, the checker caught most of them and the rest go to the teacher. The model cost is a fraction of a cent per minute of lesson.

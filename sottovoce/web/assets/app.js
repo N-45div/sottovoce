@@ -103,6 +103,11 @@ function renderStatus(job) {
     $(link).href = `/files/${job.id}/${name}`;
     $(link).hidden = job.status !== "done";
   }
+  // The lesson as text, and the desk's notes once Evolus has written them.
+  for (const [link, name] of [["dl-transcript", "transcript"], ["dl-notes", "notes"]]) {
+    $(link).href = `/files/${job.id}/${name}`;
+    $(link).hidden = job.status !== "done" || !job.text?.[name];
+  }
 }
 
 function renderStats(job) {

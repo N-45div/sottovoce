@@ -38,7 +38,8 @@ def build(*, jobs: dict, start: Callable[[str, str, str], Awaitable[str]], publi
     @server.tool()
     async def describe_lesson(video_url: str, language: Literal["en", "it"], age: Literal["5-8", "8-13", "14-18"], title: str = "") -> dict:
         """Start a described lesson from an https link to a video file (up to 5 minutes and 30 MB).
-        language is what the child listens in; age is the child's age band. Returns the lesson id and its page."""
+        language is what the child listens in; age is the child's age band; title is a short title for the
+        lesson, from the request or the video. Returns the lesson id and its page."""
         lesson_id = await start(video_url, language + AGES[age], title)
         return {"lesson_id": lesson_id, "status": "queued", "link": f"{public_url}/app/#{lesson_id}"}
 

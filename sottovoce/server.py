@@ -27,7 +27,7 @@ from fastapi.responses import RedirectResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 
-from . import desk
+from . import connector, desk
 from .agent_api import build_a2a
 from .audiences import AUDIENCES
 from .costs import cost
@@ -172,7 +172,12 @@ async def lifespan(app: FastAPI):
     # ADK's A2A app attaches its routes in its own lifespan, so run that here and
     # put the routes ahead of the static files, which answer everything else.
     a2a = await build_a2a(PUBLIC_URL)
-    async with a2a.router.lifespan_context(a2a):
+    # The MCP session manager runs once per instance, so each start builds its own.
+    mcp_app.app = connector.build(
+        jobs=jobs, start=_start_from_link, public_url=PUBLIC_URL,
+        hosts=[urlsplit(u).netloc for u in (PUBLIC_URL, DIRECT_URL) if u] + ["localhost:*", "127.0.0.1:*", "testserver"],
+    )
+    async with a2a.router.lifespan_context(a2a), mcp_app.app.router.lifespan_context(mcp_app.app):
         app.router.routes[0:0] = a2a.routes
         yield
 
@@ -658,4 +663,24 @@ async def _save(job: Job, script: Script) -> None:
     write_transcript(job, script)
 
 
+async def _start_from_link(video_url: str, audience: str, title: str) -> str:
+    """For the MCP connector: a lesson from a link, with the same checks as POST /api/jobs."""
+    try:
+        return (await create_job(video=None, audience=audience, video_url=video_url, title=title))["id"]
+    except HTTPException as e:
+        raise connector.ToolError(e.detail) from None
+
+
+class _Current:
+    """The MCP app of the running instance (built in lifespan)."""
+
+    app = None
+
+    async def __call__(self, scope, receive, send):
+        await self.app(scope, receive, send)
+
+
+# An agent can run Sottovoce through MCP (connector.py): the Evolus desk agent connects here.
+mcp_app = _Current()
+app.mount("/mcp", mcp_app)
 app.mount("/", StaticFiles(directory=Path(__file__).parent / "web", html=True), name="web")

@@ -21,7 +21,7 @@ from dataclasses import dataclass
 import httpx
 
 API = os.environ.get("EVOLUS_API", "https://api.evolus.ai")
-KEY = os.environ.get("EVOLUS_API_KEY", "")
+KEY = os.environ.get("EVOLUS_API_KEY", "").strip()  # a secret file can end in a newline
 APP = os.environ.get("EVOLUS_APP_ID", "")
 WORKFLOW = os.environ.get("EVOLUS_DESK_WORKFLOW", "")
 AGENT = os.environ.get("EVOLUS_DESK_AGENT", "")

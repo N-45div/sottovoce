@@ -86,4 +86,4 @@ These are single runs, not averages:
 | A request with its age missing, answered with one reply asking for it | 9 s |
 | A question answered from the library | 10-15 s |
 | Easy-read notes for *Moon Phases*, written and translated | 60 s |
-| Through the connector, the agent started a lesson in Italian for ages 5-8 | 13.5 s |
+| Through the connector, the agent started a lesson in Italian for ages 5-8 (all 16 lines verified) | 13.5 s |

@@ -34,6 +34,7 @@ from .costs import cost
 from .describe import GEMMA, TOKEN_FACTORY as TOKEN_FACTORY_BASE, GapResult, Settings, describe_gap, map_items
 from .asr import Word, dialogue_around, transcribe
 from .export import AIRED, export, holds, original
+from .notes import descriptive_transcript, notes_parameters
 from .pipeline import Cue, Script, describe_video, record_speech
 from .shots import duration, extract_frame
 from .voice import speak_within
@@ -49,6 +50,8 @@ FILES = {
     "narration": "narration.wav",
     "vtt": "descriptions.vtt",
     "script": "script.json",
+    "transcript": "transcript.txt",  # the lesson as text: the teacher's words and every aired line
+    "notes": "notes.txt",  # easy-read notes from the desk on Evolus, and their translation
 }
 # Media reads come off the Cloud Storage mount, so let browsers keep them a while.
 # "private": a shared CDN (Firebase Hosting in front of Cloud Run) would otherwise
@@ -121,12 +124,51 @@ async def run_job(job: Job) -> None:
             job.status, job.error = "failed", f"{type(e).__name__}: {e}"
         job.save()
         publish(job, {"type": "status", "status": job.status, "error": job.error})
+    if job.status == "done":
+        await write_notes(job)
+
+
+notes_calls = asyncio.Semaphore(1)  # one lesson's notes at a time: Token Factory is shared
+notes_errors: dict[str, str] = {}
+
+
+def write_transcript(job: Job, script: Script) -> str | None:
+    """The lesson as text, rewritten whenever a line changes."""
+    words = job.dir / "source.words.json"
+    if not words.exists():
+        return None
+    text = descriptive_transcript(job.title, job.audience, [Word(**w) for w in json.loads(words.read_text(encoding="utf-8"))], script.cues)
+    (job.dir / FILES["transcript"]).write_text(text, encoding="utf-8")
+    return text
+
+
+async def write_notes(job: Job) -> None:
+    """The transcript always; the desk's easy-read notes when Evolus is set up and there are none yet."""
+    script = job.script()
+    text = write_transcript(job, script) if script else None
+    if not text or not desk.notes_ready() or (job.dir / FILES["notes"]).exists():
+        return
+    async with notes_calls:
+        try:
+            result = await desk.write_notes(text, notes_parameters(job.audience))
+        except desk.DeskError as e:
+            notes_errors[job.id] = str(e)
+            print(f"notes for {job.id}: {e}", flush=True)
+            return
+    notes_errors.pop(job.id, None)
+    parts = [result.get("notes", ""), result.get("translation", "")]
+    (job.dir / FILES["notes"]).write_text("\n\n---\n\n".join(p.strip() for p in parts if p.strip()) + "\n", encoding="utf-8")
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     (DATA / "jobs").mkdir(parents=True, exist_ok=True)
     load_jobs()
+    # Lessons described before the notes existed get them now, one at a time.
+    for job in [j for j in jobs.values() if j.status == "done"]:
+        task = asyncio.create_task(write_notes(job))
+        tasks.add(task)
+        task.add_done_callback(tasks.discard)
     # ADK's A2A app attaches its routes in its own lifespan, so run that here and
     # put the routes ahead of the static files, which answer everything else.
     a2a = await build_a2a(PUBLIC_URL)
@@ -194,6 +236,8 @@ def get_job(job_id: str) -> dict:
         "cost_per_minute": round(spent / (script.duration / 60), 5) if script else None,
         "models": models,
         "writers": dict(writers.most_common()),
+        "text": {name: (job.dir / FILES[name]).exists() for name in ("transcript", "notes")},
+        "notes_error": notes_errors.get(job.id, ""),
     }
 
 
@@ -611,6 +655,7 @@ async def _save(job: Job, script: Script) -> None:
     script.video = str(job.dir / FILES["source"])  # jobs can move between machines
     (job.dir / FILES["script"]).write_text(script.to_json(), encoding="utf-8")
     await asyncio.to_thread(export, script, job.dir)
+    write_transcript(job, script)
 
 
 app.mount("/", StaticFiles(directory=Path(__file__).parent / "web", html=True), name="web")

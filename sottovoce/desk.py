@@ -13,6 +13,7 @@ model named "<application id>:<agent id>". Nothing is set up without EVOLUS_API_
 
 from __future__ import annotations
 
+import asyncio
 import json
 import os
 import re
@@ -25,6 +26,7 @@ KEY = os.environ.get("EVOLUS_API_KEY", "").strip()  # a secret file can end in a
 APP = os.environ.get("EVOLUS_APP_ID", "")
 WORKFLOW = os.environ.get("EVOLUS_DESK_WORKFLOW", "")
 AGENT = os.environ.get("EVOLUS_DESK_AGENT", "")
+NOTES = os.environ.get("EVOLUS_NOTES_WORKFLOW", "")  # "Lesson notes": Gemma writes them, an AI Tool translates
 EXECUTION = re.compile(r"[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}")
 LINK = re.compile(r"https://\S+")
 
@@ -42,6 +44,10 @@ class Run:
 
 def ready() -> bool:
     return bool(KEY and APP and WORKFLOW and AGENT)
+
+
+def notes_ready() -> bool:
+    return bool(KEY and APP and NOTES)
 
 
 def is_request(text: str) -> bool:
@@ -72,11 +78,11 @@ async def start(text: str) -> str:
     return r.json()["executionId"]
 
 
-async def follow(execution: str) -> Run:
+async def follow(execution: str, workflow: str = "") -> Run:
     """Where the request is; when done, the workflow's answer."""
     if not EXECUTION.fullmatch(execution):
         raise DeskError("no such request")
-    r = await _call("find the request", "GET", f"/api/v1/workflows/{WORKFLOW}/executions/{execution}", headers=_headers())
+    r = await _call("find the request", "GET", f"/api/v1/workflows/{workflow or WORKFLOW}/executions/{execution}", headers=_headers())
     run = r.json()
     if run.get("status") == "Failed":
         return Run("Failed", error=_reason(run.get("error") or ""))
@@ -86,6 +92,22 @@ async def follow(execution: str) -> Run:
         return Run("Completed", json.loads(run.get("output") or ""))
     except ValueError:
         return Run("Failed", error="the desk's answer could not be read")
+
+
+async def write_notes(transcript: str, parameters: dict, wait: float = 300) -> dict:
+    """Run "Lesson notes" on a descriptive transcript to the end: the notes and their translation."""
+    r = await _call("take the lesson", "POST", f"/api/v1/workflows/{NOTES}/execute", timeout=60, headers=_headers(),
+                    files={"input": (None, transcript), "parameters": (None, json.dumps(parameters))})
+    execution = r.json()["executionId"]
+    deadline = asyncio.get_running_loop().time() + wait
+    while asyncio.get_running_loop().time() < deadline:
+        await asyncio.sleep(5)
+        run = await follow(execution, NOTES)
+        if run.status == "Failed":
+            raise DeskError(f"the notes could not be written: {run.error}")
+        if run.status == "Completed":
+            return run.result or {}
+    raise DeskError("the notes took too long")
 
 
 def _reason(error: str) -> str:
